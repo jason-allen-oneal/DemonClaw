@@ -1,0 +1,15 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: demonclaw
+    # Map to 5433 to avoid collision with a host Postgres already bound to 5432.
+    ports:
+      - "5433:5432"
+    volumes:
+      - demonclaw_pgdata:/var/lib/postgresql/data
+
+volumes:
+  demonclaw_pgdata:
