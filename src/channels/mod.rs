@@ -3,15 +3,16 @@ use crate::{
     types::Envelope,
 };
 use axum::{
+    body::Bytes,
     extract::State,
     http::{HeaderMap, StatusCode},
-    routing::post,
+    routing::{get, post},
     Json, Router,
 };
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tokio::sync::mpsc;
-use tower_http::limit::RequestBodyLimitLayer;
+use tower_http::{limit::RequestBodyLimitLayer, services::ServeDir};
 use tracing::{error, info};
 
 pub struct Channels {
@@ -39,8 +40,11 @@ impl Channels {
 
     pub async fn run_http_server(self: Arc<Self>, addr: &str) {
         let max_bytes = self.security.max_body_bytes;
+        let assets_service = ServeDir::new("assets");
         let app = Router::new()
             .route("/ingest", post(ingest_handler))
+            .route("/healthz", get(healthz_handler))
+            .nest_service("/assets", assets_service)
             .layer(RequestBodyLimitLayer::new(max_bytes))
             .with_state(self);
 
@@ -48,6 +52,10 @@ impl Channels {
         let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
         axum::serve(listener, app).await.unwrap();
     }
+}
+
+async fn healthz_handler() -> (StatusCode, Bytes) {
+    (StatusCode::OK, Bytes::from_static(b"ok"))
 }
 
 fn check_ingest_auth(headers: &HeaderMap, sec: &SecurityConfig) -> Result<(), (StatusCode, String)> {
