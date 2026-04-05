@@ -1,2 +1,6 @@
 CHECKLIST_FULLSPEC.md
 SPEC.md
+
+# Build artifacts
+/target/
+**/*.rs.bk
