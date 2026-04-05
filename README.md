@@ -1,44 +1,86 @@
-# DemonClaw 🦞 [v1.0 Clinical]
+<p align="center">
+  <img src="assets/banner_1600x400.png" alt="DemonClaw banner" width="100%" />
+</p>
 
-**Adversarial AI Orchestration & Purple Team Framework.**
+# DemonClaw
 
-DemonClaw is a specialized, high-security fork of OpenClaw designed for offensive security professionals, red-teamers, and security researchers. It provides a phased, clinical environment for executing exploit chains, monitoring host integrity, and generating tamper-evident evidence.
+Purple-team agent runtime in Rust.
 
-## 💀 The DemonClaw Advantage
+DemonClaw is an experimental, security-first agent framework inspired by OpenClaw, built to support purple-team workflows: strict engagement scoping, tool gating/approvals, sandboxed payload execution, and tamper-evident evidence collection.
 
-- **Phased Clinical Mandate**: Operations are gated by six clinical phases (RECON_01 through GUARDIAN_06), each with strict Rules of Engagement (ROE).
-- **Clinical Intelligence (v1.0)**: Automatic MITRE ATT&CK mapping, OSINT enrichment (GreyNoise/Shodan), and stateful Incident Dossier reconstruction.
-- **Evidence Locker**: A cryptographic, tamper-evident ledger that hashes and seals every operational event for post-engagement audit.
-- **Panic Protocol**: An instant clinical kill-switch that terminates active agents and sanitizes ephemeral memory.
-- **Universal Configuration**: Consolidate your entire engagement (Gateway, ROE, and Intel keys) into a single `demonclaw.universal.json` file.
+## Status
 
-## 🚀 Quick Start (Clinical Mode)
+This repository is under active development. Interfaces may change.
 
-1. **Provision Your Universal Config**:
+## Features (current)
 
-   ```bash
-   cp schema/universal.schema.json demonclaw.universal.json
-   # Edit with your CIDRs, Keys, and ROE Signature
-   ```
+- **Envelope ingestion**
+  - REPL (stdin) ingestion
+  - HTTP ingest endpoint: `POST /ingest`
+- **Routing** via SignalGate intent classification (Query/Command/AttackPayload)
+- **Security Policy** gates (engagement context, CIDR/domain allowlists, blocked ports)
+- **GhostMCP** approval boundary for sensitive actions
+- **WASM sandbox** execution for payloads (wasmtime + wasmtime-wasi)
+- **Evidence Locker** (hash-linked, tamper-evident event chain in Postgres)
+- **Semantic memory** using Postgres + pgvector (embeddings optional)
 
-2. **Engage the Framework**:
+## Quick start (local)
 
-   ```bash
-   openclaw gateway run --config demonclaw.universal.json
-   ```
+### 1) Start Postgres (pgvector)
 
-3. **Audit Your Signal**:
-   ```bash
-   openclaw security dossier
-   ```
+```bash
+docker compose up -d
+```
 
-## 📖 Documentation
+Default DB is exposed on `localhost:5433` (see `docker-compose.yml`).
 
-- [Clinical Overview](docs/clinical/overview.md)
-- [Intelligence & Mapping](docs/clinical/intel.md)
-- [Evidence & Reporting](docs/clinical/evidence-locker.md)
-- [Playbooks](docs/clinical/playbooks.md)
+### 2) Configure environment
+
+Copy the example values from `CONFIG.md` into a `.env` file, at minimum:
+
+```bash
+DATABASE_URL=postgres://postgres:postgres@localhost:5433/demonclaw
+```
+
+### 3) Run
+
+```bash
+cargo run
+```
+
+- REPL starts automatically (type lines into stdin)
+- HTTP ingest starts automatically (bind configured by `DEMONCLAW_HTTP_BIND`)
+
+Example ingest:
+
+```bash
+curl -s \
+  -H 'content-type: application/json' \
+  -d '{"content":"payload:test_payload"}' \
+  http://localhost:3000/ingest
+```
+
+## Tests
+
+```bash
+# With Postgres running and DATABASE_URL set
+cargo test
+```
+
+## Configuration
+
+See `CONFIG.md` for all supported environment variables.
+
+## CI/CD
+
+GitHub Actions:
+- `.github/workflows/ci.yml` runs fmt, clippy, and tests with a pgvector service container.
+- `.github/workflows/security.yml` runs `cargo audit` and a workflow linter (`zizmor`) on a schedule.
+
+## License
+
+See `LICENSE`.
 
 ---
 
-_Built by BlueDot IT. Systems in Motion._
+Built by BlueDot IT.
