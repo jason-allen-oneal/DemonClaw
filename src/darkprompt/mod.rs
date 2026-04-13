@@ -4,6 +4,12 @@ use tracing::info;
 /// The AI assessment and defense toolkit.
 pub struct DarkPrompt;
 
+impl Default for DarkPrompt {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DarkPrompt {
     pub fn new() -> Self {
         info!("DarkPrompt (Assessment & Defense Toolkit) initialized.");

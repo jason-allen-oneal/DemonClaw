@@ -9,7 +9,7 @@ use demonclaw::{
     darkprompt::DarkPrompt,
     evidence::EvidenceLocker,
     ghostmcp::GhostMcp,
-    r#loop::AgentLoop,
+    r#loop::{AgentLoop, AgentLoopDeps},
     memory::MemoryManager,
     sandbox::{Manifest, Sandbox},
     scanner::Scanner,
@@ -64,17 +64,17 @@ async fn main() -> Result<()> {
             memory_optimizer.run_optimizer(3600).await;
         });
 
-        let mut agent_loop = AgentLoop::new(
+        let mut agent_loop = AgentLoop::new(AgentLoopDeps {
             signalgate,
-            memory.clone(),
+            memory: memory.clone(),
             sandbox,
             ghostmcp,
             scanner,
             darkprompt,
-            security_policy.clone(),
+            security_policy: security_policy.clone(),
             evidence_locker,
-            cfg.runtime.max_concurrent_payloads,
-        );
+            max_concurrent_payloads: cfg.runtime.max_concurrent_payloads,
+        });
 
         let (tx, rx) = tokio::sync::mpsc::channel(cfg.runtime.event_buffer);
 

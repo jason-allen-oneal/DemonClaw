@@ -165,9 +165,9 @@ impl Sandbox {
         let instance = linker.instantiate(&mut store, &module)?;
 
         info!("Executing payload entrypoint...");
-        if let Some(func) = instance.get_typed_func::<(), ()>(&mut store, "run").ok() {
+        if let Ok(func) = instance.get_typed_func::<(), ()>(&mut store, "run") {
             func.call(&mut store, ())?;
-        } else if let Some(func) = instance.get_typed_func::<(), ()>(&mut store, "_start").ok() {
+        } else if let Ok(func) = instance.get_typed_func::<(), ()>(&mut store, "_start") {
             func.call(&mut store, ())?;
         } else {
             info!("No _start or run function found in payload.");
@@ -268,10 +268,8 @@ fn extract_host(request_target: &str) -> Result<String> {
         return Ok(host.to_string());
     }
 
-    if let Some(host) = request_target.split('/').next() {
-        if !host.trim().is_empty() {
-            return Ok(host.to_string());
-        }
+    if let Some(host) = request_target.split('/').next() && !host.trim().is_empty() {
+        return Ok(host.to_string());
     }
 
     bail!(

@@ -34,7 +34,7 @@ pub enum UserForwardMode {
 }
 
 impl UserForwardMode {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_ascii_lowercase().as_str() {
             "drop" => UserForwardMode::Drop,
             "passthrough" => UserForwardMode::Passthrough,
@@ -113,7 +113,7 @@ impl SignalGateConfig {
         }
 
         if let Ok(v) = std::env::var("SIGNALGATE_USER_FORWARD_MODE") {
-            cfg.user_forward_mode = UserForwardMode::from_str(&v);
+            cfg.user_forward_mode = UserForwardMode::parse(&v);
         }
 
         if let Ok(v) = std::env::var("SIGNALGATE_USER_SALT") {
@@ -139,12 +139,11 @@ impl SignalGateConfig {
             );
         }
 
-        if let Some(allowed) = self.upstream_allowlist.get(provider) {
-            if let Some(host) = parsed.host_str() {
-                if !allowed.iter().any(|a| a == host || url.starts_with(a)) {
-                    bail!("Upstream host not allowlisted for {}: {}", provider, host);
-                }
-            }
+        if let Some(allowed) = self.upstream_allowlist.get(provider)
+            && let Some(host) = parsed.host_str()
+            && !allowed.iter().any(|a| a == host || url.starts_with(a))
+        {
+            bail!("Upstream host not allowlisted for {}: {}", provider, host);
         }
 
         Ok(())

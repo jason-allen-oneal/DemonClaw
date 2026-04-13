@@ -22,6 +22,12 @@ pub struct GhostMcp {
     secret_store: Arc<RwLock<HashMap<String, String>>>,
 }
 
+impl Default for GhostMcp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GhostMcp {
     pub fn new() -> Self {
         info!("GhostMCP (Authorization Boundary) initialized.");

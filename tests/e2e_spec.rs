@@ -2,7 +2,7 @@ use demonclaw::{
     darkprompt::DarkPrompt,
     evidence::EvidenceLocker,
     ghostmcp::GhostMcp,
-    r#loop::AgentLoop,
+    r#loop::{AgentLoop, AgentLoopDeps},
     memory::MemoryManager,
     sandbox::Sandbox,
     scanner::Scanner,
@@ -41,17 +41,17 @@ async fn e2e_payload_to_evidence_flow() -> anyhow::Result<()> {
     let darkprompt = DarkPrompt::new();
     let security = SecurityPolicy::default();
 
-    let mut agent_loop = AgentLoop::new(
+    let mut agent_loop = AgentLoop::new(AgentLoopDeps {
         signalgate,
         memory,
         sandbox,
         ghostmcp,
         scanner,
         darkprompt,
-        security,
-        evidence.clone(),
-        1,
-    );
+        security_policy: security,
+        evidence_locker: evidence.clone(),
+        max_concurrent_payloads: 1,
+    });
 
     unsafe {
         std::env::set_var("GHOSTMCP_AUTO_APPROVE", "1");

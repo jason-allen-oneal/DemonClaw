@@ -28,29 +28,31 @@ pub struct AgentLoop {
     payload_slots: Semaphore,
 }
 
+pub struct AgentLoopDeps {
+    pub signalgate: SignalGate,
+    pub memory: MemoryManager,
+    pub sandbox: Sandbox,
+    pub ghostmcp: GhostMcp,
+    pub scanner: Scanner,
+    pub darkprompt: DarkPrompt,
+    pub security_policy: SecurityPolicy,
+    pub evidence_locker: EvidenceLocker,
+    pub max_concurrent_payloads: usize,
+}
+
 impl AgentLoop {
-    pub fn new(
-        signalgate: SignalGate,
-        memory: MemoryManager,
-        sandbox: Sandbox,
-        ghostmcp: GhostMcp,
-        scanner: Scanner,
-        darkprompt: DarkPrompt,
-        security_policy: SecurityPolicy,
-        evidence_locker: EvidenceLocker,
-        max_concurrent_payloads: usize,
-    ) -> Self {
+    pub fn new(deps: AgentLoopDeps) -> Self {
         info!("Core Agent Loop constructed with SecurityPolicy + EvidenceLocker.");
         Self {
-            signalgate,
-            memory,
-            sandbox,
-            ghostmcp,
-            scanner,
-            darkprompt,
-            security_policy,
-            evidence_locker,
-            payload_slots: Semaphore::new(max_concurrent_payloads.max(1)),
+            signalgate: deps.signalgate,
+            memory: deps.memory,
+            sandbox: deps.sandbox,
+            ghostmcp: deps.ghostmcp,
+            scanner: deps.scanner,
+            darkprompt: deps.darkprompt,
+            security_policy: deps.security_policy,
+            evidence_locker: deps.evidence_locker,
+            payload_slots: Semaphore::new(deps.max_concurrent_payloads.max(1)),
         }
     }
 
@@ -109,16 +111,16 @@ impl AgentLoop {
                 Intent::Command => {
                     self.record_job_state(&env, JobState::Running, json!({"pipeline": "command"}))
                         .await;
-                    if env.content.trim() == "memory:compact" {
-                        if let Err(e) = self.memory.compact_memory().await {
-                            self.record_job_state(
-                                &env,
-                                JobState::Failed,
-                                json!({"pipeline": "command", "error": e.to_string()}),
-                            )
-                            .await;
-                            continue;
-                        }
+                    if env.content.trim() == "memory:compact"
+                        && let Err(e) = self.memory.compact_memory().await
+                    {
+                        self.record_job_state(
+                            &env,
+                            JobState::Failed,
+                            json!({"pipeline": "command", "error": e.to_string()}),
+                        )
+                        .await;
+                        continue;
                     }
                     info!("Command routed.");
                     self.record_job_state(

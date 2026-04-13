@@ -7,7 +7,7 @@ use crate::{
     signalgate::{SignalGateConfig, UserForwardMode},
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DemonClawConfig {
     #[serde(default)]
     pub server: ServerConfig,
@@ -21,19 +21,6 @@ pub struct DemonClawConfig {
     pub logging: LoggingConfig,
     #[serde(default)]
     pub ghostmcp: GhostMcpConfig,
-}
-
-impl Default for DemonClawConfig {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            security: SecurityConfig::default(),
-            signalgate: SignalGateSettings::default(),
-            runtime: RuntimeConfig::default(),
-            logging: LoggingConfig::default(),
-            ghostmcp: GhostMcpConfig::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -208,18 +195,10 @@ impl Default for LoggingConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GhostMcpConfig {
     #[serde(default)]
     pub auto_approve: bool,
-}
-
-impl Default for GhostMcpConfig {
-    fn default() -> Self {
-        Self {
-            auto_approve: false,
-        }
-    }
 }
 
 impl DemonClawConfig {
@@ -248,62 +227,58 @@ impl DemonClawConfig {
     }
 
     fn apply_env_overrides(&mut self) {
-        if let Ok(v) = std::env::var("DEMONCLAW_HTTP_BIND") {
-            if !v.trim().is_empty() {
-                self.server.http_bind = v;
-            }
+        if let Ok(v) = std::env::var("DEMONCLAW_HTTP_BIND")
+            && !v.trim().is_empty()
+        {
+            self.server.http_bind = v;
         }
 
         if let Ok(v) = std::env::var("DEMONCLAW_INGEST_AUTH_ENABLED") {
             self.security.ingest_auth_enabled = parse_bool(&v);
         }
 
-        if let Ok(v) = std::env::var("DEMONCLAW_INGEST_AUTH_HEADER") {
-            if !v.trim().is_empty() {
-                self.security.ingest_auth_header = v.trim().to_ascii_lowercase();
-            }
+        if let Ok(v) = std::env::var("DEMONCLAW_INGEST_AUTH_HEADER")
+            && !v.trim().is_empty()
+        {
+            self.security.ingest_auth_header = v.trim().to_ascii_lowercase();
         }
 
-        if let Ok(v) = std::env::var("DEMONCLAW_INGEST_TOKEN_ENV") {
-            if !v.trim().is_empty() {
-                self.security.ingest_token_env = v;
-            }
+        if let Ok(v) = std::env::var("DEMONCLAW_INGEST_TOKEN_ENV")
+            && !v.trim().is_empty()
+        {
+            self.security.ingest_token_env = v;
         }
 
-        if let Ok(v) = std::env::var("DEMONCLAW_MAX_BODY_BYTES") {
-            if let Ok(n) = v.trim().parse::<usize>() {
-                self.security.max_body_bytes = n;
-            }
+        if let Ok(v) = std::env::var("DEMONCLAW_MAX_BODY_BYTES")
+            && let Ok(n) = v.trim().parse::<usize>()
+        {
+            self.security.max_body_bytes = n;
         }
 
-        if let Ok(v) = std::env::var("DATABASE_URL") {
-            if !v.trim().is_empty() {
-                self.runtime.database_url = v;
-            }
+        if let Ok(v) = std::env::var("DATABASE_URL") && !v.trim().is_empty() {
+            self.runtime.database_url = v;
         }
 
-        if let Ok(v) = std::env::var("DEMONCLAW_SCHEDULER_INTERVAL_SECS") {
-            if let Ok(n) = v.trim().parse::<u64>() {
-                self.runtime.scheduler_interval_secs = n;
-            }
+        if let Ok(v) = std::env::var("DEMONCLAW_SCHEDULER_INTERVAL_SECS")
+            && let Ok(n) = v.trim().parse::<u64>()
+        {
+            self.runtime.scheduler_interval_secs = n;
         }
 
-        if let Ok(v) = std::env::var("DEMONCLAW_EVENT_BUFFER") {
-            if let Ok(n) = v.trim().parse::<usize>() {
-                self.runtime.event_buffer = n;
-            }
+        if let Ok(v) = std::env::var("DEMONCLAW_EVENT_BUFFER")
+            && let Ok(n) = v.trim().parse::<usize>()
+        {
+            self.runtime.event_buffer = n;
         }
 
-        if let Ok(v) = std::env::var("DEMONCLAW_MAX_CONCURRENT_PAYLOADS") {
-            if let Ok(n) = v.trim().parse::<usize>() {
-                self.runtime.max_concurrent_payloads = n.max(1);
-            }
+        if let Ok(v) = std::env::var("DEMONCLAW_MAX_CONCURRENT_PAYLOADS")
+            && let Ok(n) = v.trim().parse::<usize>()
+        {
+            self.runtime.max_concurrent_payloads = n.max(1);
         }
 
-        if let Ok(v) = std::env::var("DEMONCLAW_LOG_LEVEL") {
-            if !v.trim().is_empty() {
-                self.logging.level = v.trim().to_ascii_lowercase();
-            }
+        if let Ok(v) = std::env::var("DEMONCLAW_LOG_LEVEL") && !v.trim().is_empty() {
+            self.logging.level = v.trim().to_ascii_lowercase();
         }
 
         if let Ok(v) = std::env::var("SIGNALGATE_BASE_URL") {
@@ -334,13 +309,15 @@ impl DemonClawConfig {
     }
 
     pub fn signalgate_config(&self) -> SignalGateConfig {
-        let mut cfg = SignalGateConfig::default();
-        cfg.llm_base_url = self.signalgate.base_url.clone();
-        cfg.llm_api_key = self.signalgate.api_key.clone();
-        cfg.model = self.signalgate.model.clone();
-        cfg.upstream_allow_http = self.signalgate.upstream_allow_http;
-        cfg.user_forward_mode = UserForwardMode::from_str(&self.signalgate.user_forward_mode);
-        cfg.user_hash_salt = self.signalgate.user_hash_salt.clone();
+        let mut cfg = SignalGateConfig {
+            llm_base_url: self.signalgate.base_url.clone(),
+            llm_api_key: self.signalgate.api_key.clone(),
+            model: self.signalgate.model.clone(),
+            upstream_allow_http: self.signalgate.upstream_allow_http,
+            user_forward_mode: UserForwardMode::parse(&self.signalgate.user_forward_mode),
+            user_hash_salt: self.signalgate.user_hash_salt.clone(),
+            ..SignalGateConfig::default()
+        };
 
         for entry in self.signalgate.upstream_allowlist.split(';') {
             let mut parts = entry.split('=');
@@ -365,7 +342,7 @@ impl DemonClawConfig {
     pub fn security_policy(&self) -> SecurityPolicy {
         let mut policy = SecurityPolicy::load_from_env();
         if let Ok(v) = std::env::var("DEMONCLAW_MAX_TOOL_LEVEL") {
-            policy.max_tool_level = ToolLevel::from_str(&v);
+            policy.max_tool_level = ToolLevel::parse(&v);
         }
         policy
     }

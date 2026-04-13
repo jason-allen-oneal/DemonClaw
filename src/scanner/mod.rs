@@ -6,6 +6,12 @@ use wasmparser::{Operator, Parser, Payload};
 /// Statically analyzes WASM payloads before they load into wasmtime.
 pub struct Scanner;
 
+impl Default for Scanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Scanner {
     pub fn new() -> Self {
         info!("Payload Scanner (Pre-Execution Gate) initialized.");

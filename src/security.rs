@@ -52,7 +52,7 @@ pub enum ToolLevel {
 }
 
 impl ToolLevel {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_ascii_lowercase().as_str() {
             "passive" => ToolLevel::Passive,
             "active" => ToolLevel::Active,
@@ -97,10 +97,8 @@ impl SecurityPolicy {
                 matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes");
         }
 
-        if let Ok(v) = std::env::var("DEMONCLAW_ENGAGEMENT_ID") {
-            if !v.trim().is_empty() {
-                policy.engagement_id = Some(v.trim().to_string());
-            }
+        if let Ok(v) = std::env::var("DEMONCLAW_ENGAGEMENT_ID") && !v.trim().is_empty() {
+            policy.engagement_id = Some(v.trim().to_string());
         }
 
         if let Ok(v) = std::env::var("DEMONCLAW_ALLOW_PRIVATE_ONLY") {
@@ -132,7 +130,7 @@ impl SecurityPolicy {
         }
 
         if let Ok(v) = std::env::var("DEMONCLAW_MAX_TOOL_LEVEL") {
-            policy.max_tool_level = ToolLevel::from_str(&v);
+            policy.max_tool_level = ToolLevel::parse(&v);
         }
 
         info!(
