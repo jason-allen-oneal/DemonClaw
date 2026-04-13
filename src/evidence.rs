@@ -79,6 +79,7 @@ impl EvidenceEvent {
     }
 }
 
+#[derive(Clone)]
 pub struct EvidenceLocker {
     pool: Pool<Postgres>,
 }

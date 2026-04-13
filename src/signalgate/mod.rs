@@ -195,6 +195,10 @@ impl SignalGate {
     pub async fn classify_intent(&self, input: &str, user: Option<&str>) -> Result<Intent> {
         info!("SignalGate classifying intent for: {}", input);
 
+        if let Some(local) = classify_locally(input) {
+            return Ok(local);
+        }
+
         // Apply user forwarding policy
         let forwarded_user = self.config.user_forward_mode.forward_user(
             user,
@@ -253,4 +257,18 @@ impl SignalGate {
     pub fn is_provider_allowed(&self, provider: &str, url: &str) -> bool {
         self.config.validate_upstream_url(url, provider).is_ok()
     }
+}
+
+fn classify_locally(input: &str) -> Option<Intent> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Some(Intent::Unknown);
+    }
+    if trimmed.starts_with("payload:") {
+        return Some(Intent::AttackPayload);
+    }
+    if matches!(trimmed, "memory:compact" | "HEARTBEAT") {
+        return Some(Intent::Command);
+    }
+    Some(Intent::Query)
 }
