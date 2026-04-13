@@ -67,8 +67,10 @@ fn test_tool_level_permitted() {
 
 #[test]
 fn test_engagement_context() {
-    let mut policy = SecurityPolicy::default();
-    policy.require_engagement_context = true;
+    let mut policy = SecurityPolicy {
+        require_engagement_context: true,
+        ..SecurityPolicy::default()
+    };
 
     // No engagement ID set
     assert!(policy.check_engagement_context("test").is_err());
