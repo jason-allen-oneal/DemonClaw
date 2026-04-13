@@ -35,13 +35,11 @@ struct EmbeddingRequest {
 #[derive(Deserialize)]
 struct EmbeddingResponse {
     data: Vec<EmbeddingData>,
-    model: String,
 }
 
 #[derive(Deserialize)]
 struct EmbeddingData {
     embedding: Vec<f32>,
-    index: usize,
 }
 
 impl OpenAIEmbeddings {

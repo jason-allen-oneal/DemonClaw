@@ -17,12 +17,14 @@ This repository is under active development. Interfaces may change.
 - **Envelope ingestion**
   - REPL (stdin) ingestion
   - HTTP ingest endpoint: `POST /ingest`
-- **Routing** via SignalGate intent classification (Query/Command/AttackPayload)
+- **Routing** via SignalGate intent classification (Query/Command/AttackPayload), with local deterministic fallback for core directives
 - **Security Policy** gates (engagement context, CIDR/domain allowlists, blocked ports)
 - **GhostMCP** approval boundary for sensitive actions
 - **WASM sandbox** execution for payloads (wasmtime + wasmtime-wasi)
 - **Evidence Locker** (hash-linked, tamper-evident event chain in Postgres)
 - **Semantic memory** using Postgres + pgvector (embeddings optional)
+- **Scheduler** with interval jobs and basic 5-field cron expression support
+- **Acceptance coverage** including end-to-end payload -> evidence flow tests
 
 ## Quick start (local)
 
@@ -66,6 +68,10 @@ curl -s \
 # With Postgres running and DATABASE_URL set
 cargo test
 ```
+
+Notes:
+- DB-backed tests skip gracefully if Postgres is unavailable in the local environment.
+- End-to-end acceptance coverage includes payload execution through AgentLoop and evidence recording.
 
 ## Configuration
 
