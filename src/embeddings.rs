@@ -87,7 +87,8 @@ impl EmbeddingProvider for OpenAIEmbeddings {
         };
 
         let url = format!("{}/embeddings", self.base_url);
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .bearer_auth(&self.api_key)
             .json(&request)
@@ -111,7 +112,8 @@ impl EmbeddingProvider for OpenAIEmbeddings {
         if embedding.len() != self.dimension {
             warn!(
                 "Embedding dimension mismatch: expected {}, got {}",
-                self.dimension, embedding.len()
+                self.dimension,
+                embedding.len()
             );
         }
 
@@ -155,7 +157,10 @@ pub struct EmbeddingManager {
 }
 
 impl EmbeddingManager {
-    pub fn new(provider: Option<std::sync::Arc<dyn EmbeddingProvider>>, fallback_dim: usize) -> Self {
+    pub fn new(
+        provider: Option<std::sync::Arc<dyn EmbeddingProvider>>,
+        fallback_dim: usize,
+    ) -> Self {
         Self {
             provider,
             fallback: StubEmbeddings::new(fallback_dim),
@@ -163,7 +168,8 @@ impl EmbeddingManager {
     }
 
     pub fn from_env() -> Self {
-        let provider = OpenAIEmbeddings::from_env().map(|p| std::sync::Arc::new(p) as std::sync::Arc<dyn EmbeddingProvider>);
+        let provider = OpenAIEmbeddings::from_env()
+            .map(|p| std::sync::Arc::new(p) as std::sync::Arc<dyn EmbeddingProvider>);
         let fallback_dim = provider.as_ref().map(|p| p.dimension()).unwrap_or(1536);
         Self::new(provider, fallback_dim)
     }

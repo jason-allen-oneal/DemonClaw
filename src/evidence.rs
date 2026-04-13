@@ -2,13 +2,13 @@
 //! Each event is hashed and linked to the previous event for integrity verification
 
 use anyhow::{Result, bail};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use sqlx::{Pool, Postgres, Row};
-use uuid::Uuid;
 use tracing::{info, warn};
-use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvidenceEvent {
@@ -117,11 +117,9 @@ impl EvidenceLocker {
 
     /// Get the latest hash in the chain (for linking next event)
     pub async fn get_latest_hash(&self) -> Result<Option<String>> {
-        let row = sqlx::query(
-            "SELECT hash FROM evidence_chain ORDER BY timestamp DESC LIMIT 1",
-        )
-        .fetch_optional(&self.pool)
-        .await?;
+        let row = sqlx::query("SELECT hash FROM evidence_chain ORDER BY timestamp DESC LIMIT 1")
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(row.and_then(|r| r.try_get("hash").ok()))
     }
@@ -161,7 +159,9 @@ impl EvidenceLocker {
 
         info!(
             "Evidence appended: id={} kind={} hash={}",
-            event.id, event.kind, &event.hash[..16]
+            event.id,
+            event.kind,
+            &event.hash[..16]
         );
 
         Ok(())
@@ -217,7 +217,12 @@ impl EvidenceLocker {
             let envelope_id: Option<Uuid> = row.get("envelope_id");
 
             let computed = EvidenceEvent::compute_hash(
-                id, &prev_hash, &timestamp, &kind, &detail, &envelope_id,
+                id,
+                &prev_hash,
+                &timestamp,
+                &kind,
+                &detail,
+                &envelope_id,
             );
 
             if computed != hash {
@@ -297,15 +302,34 @@ impl EvidenceLocker {
         md.push_str("# DemonClaw Evidence Report\n\n");
         md.push_str(&format!("**Exported:** {}\n\n", chrono::Utc::now()));
         md.push_str("## Chain Verification\n\n");
-        md.push_str(&format!("- **Status:** {}\n", if verification.is_valid { "✅ VALID" } else { "❌ BROKEN" }));
-        md.push_str(&format!("- **Total Events:** {}\n", verification.total_events));
-        md.push_str(&format!("- **Valid Events:** {}\n", verification.valid_events));
+        md.push_str(&format!(
+            "- **Status:** {}\n",
+            if verification.is_valid {
+                "✅ VALID"
+            } else {
+                "❌ BROKEN"
+            }
+        ));
+        md.push_str(&format!(
+            "- **Total Events:** {}\n",
+            verification.total_events
+        ));
+        md.push_str(&format!(
+            "- **Valid Events:** {}\n",
+            verification.valid_events
+        ));
 
         if !verification.broken_links.is_empty() {
-            md.push_str(&format!("- **Broken Links:** {}\n", verification.broken_links.len()));
+            md.push_str(&format!(
+                "- **Broken Links:** {}\n",
+                verification.broken_links.len()
+            ));
         }
         if !verification.hash_mismatches.is_empty() {
-            md.push_str(&format!("- **Hash Mismatches:** {}\n", verification.hash_mismatches.len()));
+            md.push_str(&format!(
+                "- **Hash Mismatches:** {}\n",
+                verification.hash_mismatches.len()
+            ));
         }
 
         md.push_str("\n## Event Log\n\n");
@@ -314,14 +338,13 @@ impl EvidenceLocker {
 
         for event in events.iter().rev() {
             let detail_summary = match &event.detail {
-                serde_json::Value::Object(obj) => {
-                    obj.get("content")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("{}")
-                        .chars()
-                        .take(50)
-                        .collect::<String>()
-                }
+                serde_json::Value::Object(obj) => obj
+                    .get("content")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("{}")
+                    .chars()
+                    .take(50)
+                    .collect::<String>(),
                 _ => "{}".to_string(),
             };
             md.push_str(&format!(

@@ -9,8 +9,8 @@ use demonclaw::{
     darkprompt::DarkPrompt,
     evidence::EvidenceLocker,
     ghostmcp::GhostMcp,
-    memory::MemoryManager,
     r#loop::AgentLoop,
+    memory::MemoryManager,
     sandbox::{Manifest, Sandbox},
     scanner::Scanner,
     scheduler::Scheduler,
@@ -31,11 +31,8 @@ async fn main() -> Result<()> {
         _ => Level::INFO,
     };
 
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(log_level)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    let subscriber = FmtSubscriber::builder().with_max_level(log_level).finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     info!("DemonClaw initialized. Core architecture booting...");
 
@@ -107,7 +104,12 @@ async fn main() -> Result<()> {
     } else {
         warn!("!!! SYSTEM RUNNING WITHOUT PERSISTENT MEMORY !!!");
         info!("Executing Headless Sandbox Test (v2.0 Spec Validation)...");
-        let payloads = vec!["test_payload", "network_scanner", "web_enum", "config_auditor"];
+        let payloads = vec![
+            "test_payload",
+            "network_scanner",
+            "web_enum",
+            "config_auditor",
+        ];
         for p in payloads {
             let payload_path = format!(
                 "{}/payloads/{}/target/wasm32-wasip1/release/{}.wasm",
@@ -120,13 +122,25 @@ async fn main() -> Result<()> {
                 info!("Executing {}...", p);
 
                 let manifest = if p == "network_scanner" {
-                    Manifest { can_http: vec!["scan.demonclaw.local".to_string()], can_exec: false }
+                    Manifest {
+                        can_http: vec!["scan.demonclaw.local".to_string()],
+                        can_exec: false,
+                    }
                 } else if p == "web_enum" {
-                    Manifest { can_http: vec!["target.demonclaw.local".to_string()], can_exec: false }
+                    Manifest {
+                        can_http: vec!["target.demonclaw.local".to_string()],
+                        can_exec: false,
+                    }
                 } else if p == "config_auditor" {
-                    Manifest { can_http: vec!["config.demonclaw.local".to_string()], can_exec: true }
+                    Manifest {
+                        can_http: vec!["config.demonclaw.local".to_string()],
+                        can_exec: true,
+                    }
                 } else {
-                    Manifest { can_http: vec![], can_exec: false }
+                    Manifest {
+                        can_http: vec![],
+                        can_exec: false,
+                    }
                 };
 
                 sandbox.run_payload(&wasm_bytes, &manifest)?;

@@ -1,6 +1,6 @@
 //! Evidence Chain Tests
 
-use demonclaw::evidence::{EvidenceEvent, ChainVerification};
+use demonclaw::evidence::{ChainVerification, EvidenceEvent};
 use serde_json::json;
 use uuid::Uuid;
 

@@ -93,7 +93,8 @@ impl SecurityPolicy {
         let mut policy = Self::default();
 
         if let Ok(v) = std::env::var("DEMONCLAW_REQUIRE_ENGAGEMENT") {
-            policy.require_engagement_context = matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes");
+            policy.require_engagement_context =
+                matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes");
         }
 
         if let Ok(v) = std::env::var("DEMONCLAW_ENGAGEMENT_ID") {
@@ -103,11 +104,16 @@ impl SecurityPolicy {
         }
 
         if let Ok(v) = std::env::var("DEMONCLAW_ALLOW_PRIVATE_ONLY") {
-            policy.allow_private_only = matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes");
+            policy.allow_private_only =
+                matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes");
         }
 
         if let Ok(v) = std::env::var("DEMONCLAW_ALLOWED_CIDRS") {
-            policy.allowed_cidrs = v.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+            policy.allowed_cidrs = v
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
         }
 
         if let Ok(v) = std::env::var("DEMONCLAW_BLOCKED_PORTS") {
@@ -118,15 +124,21 @@ impl SecurityPolicy {
         }
 
         if let Ok(v) = std::env::var("DEMONCLAW_ALLOWED_DOMAINS") {
-            policy.allowed_domains = v.split(',').map(|s| s.trim().to_lowercase()).filter(|s| !s.is_empty()).collect();
+            policy.allowed_domains = v
+                .split(',')
+                .map(|s| s.trim().to_lowercase())
+                .filter(|s| !s.is_empty())
+                .collect();
         }
 
         if let Ok(v) = std::env::var("DEMONCLAW_MAX_TOOL_LEVEL") {
             policy.max_tool_level = ToolLevel::from_str(&v);
         }
 
-        info!("SecurityPolicy loaded: engagement={:?}, private_only={}, tool_level={:?}",
-              policy.engagement_id, policy.allow_private_only, policy.max_tool_level);
+        info!(
+            "SecurityPolicy loaded: engagement={:?}, private_only={}, tool_level={:?}",
+            policy.engagement_id, policy.allow_private_only, policy.max_tool_level
+        );
 
         policy
     }
@@ -150,13 +162,17 @@ impl SecurityPolicy {
         // Validate each resolved IP
         for ip in &ips {
             if self.allow_private_only && !is_private_ip(ip) {
-                bail!("Target policy violation: only private addresses are allowed (got {})", ip);
+                bail!(
+                    "Target policy violation: only private addresses are allowed (got {})",
+                    ip
+                );
             }
 
             if !self.allowed_cidrs.is_empty() {
-                let in_allowlist = self.allowed_cidrs.iter().any(|cidr| {
-                    ip_in_cidr(ip, cidr).unwrap_or(false)
-                });
+                let in_allowlist = self
+                    .allowed_cidrs
+                    .iter()
+                    .any(|cidr| ip_in_cidr(ip, cidr).unwrap_or(false));
                 if !in_allowlist {
                     bail!("Target policy violation: {} not in allowed CIDRs", ip);
                 }
@@ -173,7 +189,11 @@ impl SecurityPolicy {
         }
 
         if ports.len() > self.max_ports_per_scan as usize {
-            bail!("Port list too large: {} > {}", ports.len(), self.max_ports_per_scan);
+            bail!(
+                "Port list too large: {} > {}",
+                ports.len(),
+                self.max_ports_per_scan
+            );
         }
 
         let mut validated = Vec::new();
@@ -200,14 +220,21 @@ impl SecurityPolicy {
         }
 
         // Basic domain regex check
-        static DOMAIN_RE: std::sync::LazyLock<regex::Regex> =
-            std::sync::LazyLock::new(|| regex::Regex::new(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$").unwrap());
+        static DOMAIN_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+            regex::Regex::new(
+                r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$",
+            )
+            .unwrap()
+        });
 
         if !DOMAIN_RE.is_match(&candidate) {
             bail!("Invalid domain name format");
         }
 
-        let candidate = candidate.strip_suffix('.').unwrap_or(&candidate).to_string();
+        let candidate = candidate
+            .strip_suffix('.')
+            .unwrap_or(&candidate)
+            .to_string();
 
         // Check against allowed domains
         if !self.allowed_domains.is_empty() {
@@ -225,7 +252,10 @@ impl SecurityPolicy {
     /// Check if engagement context is required and present
     pub fn check_engagement_context(&self, operation: &str) -> Result<()> {
         if self.require_engagement_context && self.engagement_id.is_none() {
-            bail!("Engagement context required for '{}' but no engagement_id set", operation);
+            bail!(
+                "Engagement context required for '{}' but no engagement_id set",
+                operation
+            );
         }
         Ok(())
     }
@@ -233,7 +263,11 @@ impl SecurityPolicy {
     /// Check if a tool level is permitted
     pub fn check_tool_level(&self, requested: ToolLevel) -> Result<()> {
         if !tool_level_permitted(self.max_tool_level, requested) {
-            bail!("Tool level {:?} exceeds maximum allowed level {:?}", requested, self.max_tool_level);
+            bail!(
+                "Tool level {:?} exceeds maximum allowed level {:?}",
+                requested,
+                self.max_tool_level
+            );
         }
         Ok(())
     }

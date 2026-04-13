@@ -1,9 +1,9 @@
+use crate::embeddings::EmbeddingManager;
 use anyhow::{Result, anyhow};
 use serde_json::Value;
 use sqlx::{Pool, Postgres, Row, postgres::PgPoolOptions};
-use uuid::Uuid;
 use tracing::{info, warn};
-use crate::embeddings::EmbeddingManager;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct MemoryManager {
@@ -38,7 +38,10 @@ impl MemoryManager {
 
         let embeddings = EmbeddingManager::from_env();
         if embeddings.is_available() {
-            info!("Embedding provider available (dim={})", embeddings.dimension());
+            info!(
+                "Embedding provider available (dim={})",
+                embeddings.dimension()
+            );
         } else {
             warn!("No embedding provider configured, using stub (FTS only)");
         }
@@ -128,7 +131,9 @@ impl MemoryManager {
 
     pub async fn compact_memory(&self) -> Result<()> {
         info!("MemoryManager performing semantic compaction and index optimization...");
-        sqlx::query("ANALYZE memory_chunks").execute(&self.pool).await?;
+        sqlx::query("ANALYZE memory_chunks")
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
@@ -211,7 +216,7 @@ impl MemoryManager {
 
     /// Memory Optimizer: background compaction and index maintenance
     pub async fn run_optimizer(&self, interval_secs: u64) {
-        use tokio::time::{interval, Duration};
+        use tokio::time::{Duration, interval};
         let mut ticker = interval(Duration::from_secs(interval_secs));
 
         info!("Memory Optimizer started (interval={}s)", interval_secs);

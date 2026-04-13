@@ -31,17 +31,38 @@ fn test_validate_ports() {
 #[test]
 fn test_tool_level_permitted() {
     // Intrusive allows all
-    assert!(demonclaw::security::tool_level_permitted(ToolLevel::Intrusive, ToolLevel::Passive));
-    assert!(demonclaw::security::tool_level_permitted(ToolLevel::Intrusive, ToolLevel::Active));
-    assert!(demonclaw::security::tool_level_permitted(ToolLevel::Intrusive, ToolLevel::Intrusive));
+    assert!(demonclaw::security::tool_level_permitted(
+        ToolLevel::Intrusive,
+        ToolLevel::Passive
+    ));
+    assert!(demonclaw::security::tool_level_permitted(
+        ToolLevel::Intrusive,
+        ToolLevel::Active
+    ));
+    assert!(demonclaw::security::tool_level_permitted(
+        ToolLevel::Intrusive,
+        ToolLevel::Intrusive
+    ));
 
     // Active blocks intrusive
-    assert!(!demonclaw::security::tool_level_permitted(ToolLevel::Active, ToolLevel::Intrusive));
-    assert!(demonclaw::security::tool_level_permitted(ToolLevel::Active, ToolLevel::Active));
+    assert!(!demonclaw::security::tool_level_permitted(
+        ToolLevel::Active,
+        ToolLevel::Intrusive
+    ));
+    assert!(demonclaw::security::tool_level_permitted(
+        ToolLevel::Active,
+        ToolLevel::Active
+    ));
 
     // Passive blocks active and intrusive
-    assert!(!demonclaw::security::tool_level_permitted(ToolLevel::Passive, ToolLevel::Active));
-    assert!(!demonclaw::security::tool_level_permitted(ToolLevel::Passive, ToolLevel::Intrusive));
+    assert!(!demonclaw::security::tool_level_permitted(
+        ToolLevel::Passive,
+        ToolLevel::Active
+    ));
+    assert!(!demonclaw::security::tool_level_permitted(
+        ToolLevel::Passive,
+        ToolLevel::Intrusive
+    ));
 }
 
 #[test]

@@ -89,11 +89,13 @@ impl Sandbox {
         linker.func_wrap(
             "env",
             "log",
-            |mut caller: Caller<'_, SandboxState>, ptr: i32, len: i32| {
-                match read_guest_string(&mut caller, ptr, len) {
-                    Ok(msg) => info!("Payload Log: {}", msg),
-                    Err(err) => info!("Payload Log decode error: {}", err),
-                }
+            |mut caller: Caller<'_, SandboxState>, ptr: i32, len: i32| match read_guest_string(
+                &mut caller,
+                ptr,
+                len,
+            ) {
+                Ok(msg) => info!("Payload Log: {}", msg),
+                Err(err) => info!("Payload Log decode error: {}", err),
             },
         )?;
 
@@ -111,7 +113,10 @@ impl Sandbox {
 
                 match enforce_http_permission(&caller.data().manifest, &request_target) {
                     Ok(()) => {
-                        info!("Payload HTTP request approved for target: {}", request_target);
+                        info!(
+                            "Payload HTTP request approved for target: {}",
+                            request_target
+                        );
                         0
                     }
                     Err(err) => {
@@ -228,7 +233,10 @@ fn enforce_http_permission(manifest: &Manifest, request_target: &str) -> Result<
         .any(|rule| host_matches_rule(&host, rule));
 
     if !allowed {
-        bail!("HTTP blocked: target '{}' is not in manifest allowlist", host);
+        bail!(
+            "HTTP blocked: target '{}' is not in manifest allowlist",
+            host
+        );
     }
 
     Ok(())
@@ -266,7 +274,10 @@ fn extract_host(request_target: &str) -> Result<String> {
         }
     }
 
-    bail!("Unable to parse request target host from '{}'", request_target)
+    bail!(
+        "Unable to parse request target host from '{}'",
+        request_target
+    )
 }
 
 fn host_matches_rule(host: &str, rule: &str) -> bool {
@@ -274,7 +285,8 @@ fn host_matches_rule(host: &str, rule: &str) -> bool {
         return true;
     }
 
-    if let (Ok(host_ip), Some((network_ip, prefix))) = (Ipv4Addr::from_str(host), parse_cidr(rule)) {
+    if let (Ok(host_ip), Some((network_ip, prefix))) = (Ipv4Addr::from_str(host), parse_cidr(rule))
+    {
         return ipv4_in_cidr(host_ip, network_ip, prefix);
     }
 

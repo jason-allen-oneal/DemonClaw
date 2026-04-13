@@ -1,13 +1,10 @@
-use crate::{
-    config::SecurityConfig,
-    types::Envelope,
-};
+use crate::{config::SecurityConfig, types::Envelope};
 use axum::{
+    Json, Router,
     body::Bytes,
     extract::State,
     http::{HeaderMap, StatusCode},
     routing::{get, post},
-    Json, Router,
 };
 use std::sync::Arc;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
@@ -58,16 +55,26 @@ async fn healthz_handler() -> (StatusCode, Bytes) {
     (StatusCode::OK, Bytes::from_static(b"ok"))
 }
 
-fn check_ingest_auth(headers: &HeaderMap, sec: &SecurityConfig) -> Result<(), (StatusCode, String)> {
+fn check_ingest_auth(
+    headers: &HeaderMap,
+    sec: &SecurityConfig,
+) -> Result<(), (StatusCode, String)> {
     if !sec.ingest_auth_enabled {
         return Ok(());
     }
 
-    let expected = std::env::var(&sec.ingest_token_env)
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, format!("Missing env {}", sec.ingest_token_env)))?;
+    let expected = std::env::var(&sec.ingest_token_env).map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Missing env {}", sec.ingest_token_env),
+        )
+    })?;
 
     if expected.trim().is_empty() {
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, "Ingest token is empty".to_string()));
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Ingest token is empty".to_string(),
+        ));
     }
 
     let header_name = sec.ingest_auth_header.to_ascii_lowercase();
@@ -94,7 +101,12 @@ async fn ingest_handler(
     let content = payload
         .get("content")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing 'content' field".to_string()))?;
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                "Missing 'content' field".to_string(),
+            )
+        })?;
 
     let env = Envelope::new("http", content);
     state

@@ -2,10 +2,10 @@
 //! Ported from SignalGate Python repo - upstream allowlist, user forwarding, security gates
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
-use tracing::{info, warn};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tracing::{info, warn};
 use url::Url;
 
 #[derive(Debug, Clone)]
@@ -88,7 +88,8 @@ impl SignalGateConfig {
         }
 
         if let Ok(v) = std::env::var("SIGNALGATE_UPSTREAM_ALLOW_HTTP") {
-            cfg.upstream_allow_http = matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes");
+            cfg.upstream_allow_http =
+                matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes");
         }
 
         if let Ok(v) = std::env::var("SIGNALGATE_UPSTREAM_ALLOWLIST") {
@@ -96,14 +97,16 @@ impl SignalGateConfig {
             for entry in v.split(';') {
                 let mut parts = entry.split('=');
                 if let Some(provider) = parts.next() {
-                    let urls: Vec<String> = parts.next()
+                    let urls: Vec<String> = parts
+                        .next()
                         .unwrap_or("")
                         .split(',')
                         .map(|s| s.trim().to_string())
                         .filter(|s| !s.is_empty())
                         .collect();
                     if !urls.is_empty() {
-                        cfg.upstream_allowlist.insert(provider.trim().to_string(), urls);
+                        cfg.upstream_allowlist
+                            .insert(provider.trim().to_string(), urls);
                     }
                 }
             }
@@ -129,7 +132,11 @@ impl SignalGateConfig {
         let parsed = Url::parse(url)?;
 
         if parsed.scheme() != "https" && !self.upstream_allow_http {
-            bail!("Insecure upstream scheme for {}: {}", provider, parsed.scheme());
+            bail!(
+                "Insecure upstream scheme for {}: {}",
+                provider,
+                parsed.scheme()
+            );
         }
 
         if let Some(allowed) = self.upstream_allowlist.get(provider) {
@@ -200,10 +207,10 @@ impl SignalGate {
         }
 
         // Apply user forwarding policy
-        let forwarded_user = self.config.user_forward_mode.forward_user(
-            user,
-            &self.config.user_hash_salt,
-        );
+        let forwarded_user = self
+            .config
+            .user_forward_mode
+            .forward_user(user, &self.config.user_hash_salt);
 
         if let Some(ref u) = forwarded_user {
             info!("SignalGate: user forwarded as hash={}", &u[..16]);
@@ -212,7 +219,8 @@ impl SignalGate {
         let prompt = format!(
             "Classify the following user input into one of these intents: Query, Command, AttackPayload. \
             Only respond with the exact word of the intent. \
-            Input: '{}'", input
+            Input: '{}'",
+            input
         );
 
         let req = ChatRequest {
@@ -224,7 +232,9 @@ impl SignalGate {
             temperature: 0.0,
         };
 
-        let res = self.client.post(format!("{}/chat/completions", self.config.llm_base_url))
+        let res = self
+            .client
+            .post(format!("{}/chat/completions", self.config.llm_base_url))
             .bearer_auth(&self.config.llm_api_key)
             .json(&req)
             .send()
@@ -242,7 +252,10 @@ impl SignalGate {
                 });
             }
         } else {
-            warn!("Failed to classify intent, LLM returned status: {}", res.status());
+            warn!(
+                "Failed to classify intent, LLM returned status: {}",
+                res.status()
+            );
         }
 
         Ok(Intent::Unknown)

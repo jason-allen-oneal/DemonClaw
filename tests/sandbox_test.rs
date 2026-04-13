@@ -1,6 +1,6 @@
 //! WASM Sandbox Tests
 
-use demonclaw::sandbox::{Sandbox, Manifest};
+use demonclaw::sandbox::{Manifest, Sandbox};
 
 #[test]
 fn test_sandbox_creation() {

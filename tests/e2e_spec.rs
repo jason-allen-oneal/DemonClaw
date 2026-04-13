@@ -2,8 +2,8 @@ use demonclaw::{
     darkprompt::DarkPrompt,
     evidence::EvidenceLocker,
     ghostmcp::GhostMcp,
-    memory::MemoryManager,
     r#loop::AgentLoop,
+    memory::MemoryManager,
     sandbox::Sandbox,
     scanner::Scanner,
     scheduler::Scheduler,
@@ -22,7 +22,10 @@ async fn e2e_payload_to_evidence_flow() -> anyhow::Result<()> {
     let memory = match MemoryManager::new(&test_db_url()).await {
         Ok(mm) => mm,
         Err(e) => {
-            println!("Skipping e2e_payload_to_evidence_flow, database unavailable: {}", e);
+            println!(
+                "Skipping e2e_payload_to_evidence_flow, database unavailable: {}",
+                e
+            );
             return Ok(());
         }
     };
@@ -72,7 +75,10 @@ async fn e2e_payload_to_evidence_flow() -> anyhow::Result<()> {
     let completed = evidence.query_by_kind("job.completed", 10).await?;
 
     anyhow::ensure!(!received.is_empty(), "expected job.received evidence event");
-    anyhow::ensure!(!completed.is_empty(), "expected job.completed evidence event");
+    anyhow::ensure!(
+        !completed.is_empty(),
+        "expected job.completed evidence event"
+    );
 
     Ok(())
 }

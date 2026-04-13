@@ -23,8 +23,6 @@ fn unit_vec(v: f32, dim: usize) -> Vec<f32> {
     out
 }
 
-
-
 fn repo_root() -> &'static str {
     env!("CARGO_MANIFEST_DIR")
 }
@@ -32,8 +30,14 @@ fn repo_root() -> &'static str {
 #[test]
 fn config_loads_default_or_file() -> anyhow::Result<()> {
     let cfg = DemonClawConfig::load()?;
-    anyhow::ensure!(!cfg.server.http_bind.is_empty(), "http bind should not be empty");
-    anyhow::ensure!(cfg.runtime.max_concurrent_payloads >= 1, "payload concurrency should be set");
+    anyhow::ensure!(
+        !cfg.server.http_bind.is_empty(),
+        "http bind should not be empty"
+    );
+    anyhow::ensure!(
+        cfg.runtime.max_concurrent_payloads >= 1,
+        "payload concurrency should be set"
+    );
     Ok(())
 }
 
@@ -42,7 +46,10 @@ async fn memory_pgvector_insert_and_query() -> anyhow::Result<()> {
     let mm = match MemoryManager::new(&test_db_url()).await {
         Ok(mm) => mm,
         Err(e) => {
-            println!("Skipping memory_pgvector_insert_and_query, database unavailable: {}", e);
+            println!(
+                "Skipping memory_pgvector_insert_and_query, database unavailable: {}",
+                e
+            );
             return Ok(());
         }
     };
@@ -106,7 +113,10 @@ fn scanner_accepts_known_payloads() -> anyhow::Result<()> {
         let wasm = match fs::read(&path) {
             Ok(w) => w,
             Err(_) => {
-                println!("Skipping payload {} (not built). Run: cd payloads/{} && cargo build --release --target wasm32-wasip1", p, p);
+                println!(
+                    "Skipping payload {} (not built). Run: cd payloads/{} && cargo build --release --target wasm32-wasip1",
+                    p, p
+                );
                 continue;
             }
         };
@@ -161,7 +171,10 @@ fn sandbox_runs_payloads_with_expected_manifests() -> anyhow::Result<()> {
         let wasm = match fs::read(&path) {
             Ok(w) => w,
             Err(_) => {
-                println!("Skipping payload {} (not built). Run: cd payloads/{} && cargo build --release --target wasm32-wasip1", p, p);
+                println!(
+                    "Skipping payload {} (not built). Run: cd payloads/{} && cargo build --release --target wasm32-wasip1",
+                    p, p
+                );
                 continue;
             }
         };

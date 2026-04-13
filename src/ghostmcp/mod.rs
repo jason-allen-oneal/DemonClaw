@@ -84,11 +84,16 @@ impl GhostMcp {
     /// Convenience: payload execution authorization.
     pub async fn approve_payload(&self, payload_name: &str) -> Result<bool> {
         // For now, treat payload runs as an "execute" action.
-        self.authorize_action(&format!("execute:payload:{}", payload_name)).await
+        self.authorize_action(&format!("execute:payload:{}", payload_name))
+            .await
     }
 
     /// Injects secret into an outbound WASM request boundary.
-    pub async fn inject_credential(&self, request: &mut OutboundRequest, secret_key: &str) -> Result<()> {
+    pub async fn inject_credential(
+        &self,
+        request: &mut OutboundRequest,
+        secret_key: &str,
+    ) -> Result<()> {
         if !self
             .approved_actions
             .read()

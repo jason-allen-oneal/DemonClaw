@@ -34,7 +34,10 @@ impl Scheduler {
             tokio::spawn(async move {
                 if let Some(interval_secs) = job.interval_secs {
                     let mut ticker = interval(Duration::from_secs(interval_secs.max(1)));
-                    info!("Scheduled job started: {} every {}s", job.name, interval_secs);
+                    info!(
+                        "Scheduled job started: {} every {}s",
+                        job.name, interval_secs
+                    );
                     loop {
                         ticker.tick().await;
                         if let Err(err) = enqueue_job(&tx, &job, "interval").await {
@@ -56,7 +59,8 @@ impl Scheduler {
                     loop {
                         ticker.tick().await;
                         let now = Utc::now();
-                        let minute_key = (now.year(), now.month(), now.day(), now.hour(), now.minute());
+                        let minute_key =
+                            (now.year(), now.month(), now.day(), now.hour(), now.minute());
                         if parsed.matches(now) && last_fired_minute != Some(minute_key) {
                             last_fired_minute = Some(minute_key);
                             if let Err(err) = enqueue_job(&tx, &job, "cron").await {
@@ -71,9 +75,17 @@ impl Scheduler {
     }
 }
 
-async fn enqueue_job(tx: &mpsc::Sender<Envelope>, job: &ScheduledJobConfig, schedule_kind: &str) -> Result<(), mpsc::error::SendError<Envelope>> {
+async fn enqueue_job(
+    tx: &mpsc::Sender<Envelope>,
+    job: &ScheduledJobConfig,
+    schedule_kind: &str,
+) -> Result<(), mpsc::error::SendError<Envelope>> {
     let mut env = Envelope::new(
-        if job.source.is_empty() { "scheduler" } else { &job.source },
+        if job.source.is_empty() {
+            "scheduler"
+        } else {
+            &job.source
+        },
         &job.content,
     );
     env.metadata = serde_json::json!({
@@ -112,7 +124,9 @@ impl CronSchedule {
             && self.hour.matches(dt.hour())
             && self.day_of_month.matches(dt.day())
             && self.month.matches(dt.month())
-            && self.day_of_week.matches(dt.weekday().num_days_from_sunday())
+            && self
+                .day_of_week
+                .matches(dt.weekday().num_days_from_sunday())
     }
 }
 
@@ -141,7 +155,10 @@ impl CronField {
                     let v = base.parse::<u32>()?;
                     (v, max)
                 };
-                anyhow::ensure!(start >= min && end <= max && start <= end, "cron range out of bounds");
+                anyhow::ensure!(
+                    start >= min && end <= max && start <= end,
+                    "cron range out of bounds"
+                );
                 let mut v = start;
                 while v <= end {
                     values.push(v);
@@ -153,7 +170,10 @@ impl CronField {
             } else if let Some((a, b)) = part.split_once('-') {
                 let start = a.parse::<u32>()?;
                 let end = b.parse::<u32>()?;
-                anyhow::ensure!(start >= min && end <= max && start <= end, "cron range out of bounds");
+                anyhow::ensure!(
+                    start >= min && end <= max && start <= end,
+                    "cron range out of bounds"
+                );
                 for v in start..=end {
                     values.push(v);
                 }

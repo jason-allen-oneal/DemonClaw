@@ -216,7 +216,9 @@ pub struct GhostMcpConfig {
 
 impl Default for GhostMcpConfig {
     fn default() -> Self {
-        Self { auto_approve: false }
+        Self {
+            auto_approve: false,
+        }
     }
 }
 
@@ -370,5 +372,8 @@ impl DemonClawConfig {
 }
 
 fn parse_bool(v: &str) -> bool {
-    matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
+    matches!(
+        v.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "on"
+    )
 }
