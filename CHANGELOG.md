@@ -2,6 +2,8 @@
 
 ## 0.1.0-rc1 - 2026-04-13
 
+Release candidate prepared for first tagged release.
+
 Initial release candidate.
 
 ### Added
