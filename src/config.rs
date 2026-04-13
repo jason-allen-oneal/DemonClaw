@@ -255,7 +255,9 @@ impl DemonClawConfig {
             self.security.max_body_bytes = n;
         }
 
-        if let Ok(v) = std::env::var("DATABASE_URL") && !v.trim().is_empty() {
+        if let Ok(v) = std::env::var("DATABASE_URL")
+            && !v.trim().is_empty()
+        {
             self.runtime.database_url = v;
         }
 
@@ -277,7 +279,9 @@ impl DemonClawConfig {
             self.runtime.max_concurrent_payloads = n.max(1);
         }
 
-        if let Ok(v) = std::env::var("DEMONCLAW_LOG_LEVEL") && !v.trim().is_empty() {
+        if let Ok(v) = std::env::var("DEMONCLAW_LOG_LEVEL")
+            && !v.trim().is_empty()
+        {
             self.logging.level = v.trim().to_ascii_lowercase();
         }
 

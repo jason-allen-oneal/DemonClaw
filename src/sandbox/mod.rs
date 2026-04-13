@@ -268,7 +268,9 @@ fn extract_host(request_target: &str) -> Result<String> {
         return Ok(host.to_string());
     }
 
-    if let Some(host) = request_target.split('/').next() && !host.trim().is_empty() {
+    if let Some(host) = request_target.split('/').next()
+        && !host.trim().is_empty()
+    {
         return Ok(host.to_string());
     }
 

@@ -97,7 +97,9 @@ impl SecurityPolicy {
                 matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes");
         }
 
-        if let Ok(v) = std::env::var("DEMONCLAW_ENGAGEMENT_ID") && !v.trim().is_empty() {
+        if let Ok(v) = std::env::var("DEMONCLAW_ENGAGEMENT_ID")
+            && !v.trim().is_empty()
+        {
             policy.engagement_id = Some(v.trim().to_string());
         }
 
