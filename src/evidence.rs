@@ -32,7 +32,7 @@ impl EvidenceEvent {
         let timestamp = Utc::now();
         let kind_str = kind.into();
         let hash = Self::compute_hash(id, &prev_hash, &timestamp, &kind_str, &detail, &envelope_id);
-        
+
         Self {
             id,
             prev_hash,
@@ -183,7 +183,7 @@ impl EvidenceLocker {
     /// Verify the entire chain integrity
     pub async fn verify_chain(&self) -> Result<ChainVerification> {
         let rows = sqlx::query(
-            "SELECT id, prev_hash, timestamp, kind, detail, envelope_id, hash 
+            "SELECT id, prev_hash, timestamp, kind, detail, envelope_id, hash
              FROM evidence_chain ORDER BY timestamp ASC",
         )
         .fetch_all(&self.pool)
@@ -236,7 +236,7 @@ impl EvidenceLocker {
     /// Query events by kind
     pub async fn query_by_kind(&self, kind: &str, limit: i64) -> Result<Vec<EvidenceEvent>> {
         let rows = sqlx::query(
-            "SELECT id, prev_hash, timestamp, kind, detail, envelope_id, hash 
+            "SELECT id, prev_hash, timestamp, kind, detail, envelope_id, hash
              FROM evidence_chain WHERE kind = $1 ORDER BY timestamp DESC LIMIT $2",
         )
         .bind(kind)
@@ -261,7 +261,7 @@ impl EvidenceLocker {
     /// Export evidence chain as JSON report
     pub async fn export_json(&self, limit: i64) -> Result<String> {
         let rows = sqlx::query(
-            "SELECT id, prev_hash, timestamp, kind, detail, envelope_id, hash 
+            "SELECT id, prev_hash, timestamp, kind, detail, envelope_id, hash
              FROM evidence_chain ORDER BY timestamp DESC LIMIT $1",
         )
         .bind(limit)
@@ -300,18 +300,18 @@ impl EvidenceLocker {
         md.push_str(&format!("- **Status:** {}\n", if verification.is_valid { "✅ VALID" } else { "❌ BROKEN" }));
         md.push_str(&format!("- **Total Events:** {}\n", verification.total_events));
         md.push_str(&format!("- **Valid Events:** {}\n", verification.valid_events));
-        
+
         if !verification.broken_links.is_empty() {
             md.push_str(&format!("- **Broken Links:** {}\n", verification.broken_links.len()));
         }
         if !verification.hash_mismatches.is_empty() {
             md.push_str(&format!("- **Hash Mismatches:** {}\n", verification.hash_mismatches.len()));
         }
-        
+
         md.push_str("\n## Event Log\n\n");
         md.push_str("| Timestamp | Kind | ID | Details |\n");
         md.push_str("|-----------|------|-----|---------|\n");
-        
+
         for event in events.iter().rev() {
             let detail_summary = match &event.detail {
                 serde_json::Value::Object(obj) => {

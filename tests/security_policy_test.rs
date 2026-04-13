@@ -14,15 +14,15 @@ fn test_default_policy() {
 #[test]
 fn test_validate_ports() {
     let policy = SecurityPolicy::default();
-    
+
     // Valid ports
     let result = policy.validate_ports(&[80, 443, 8080]);
     assert!(result.is_ok());
-    
+
     // Blocked port
     let result = policy.validate_ports(&[22]);
     assert!(result.is_err());
-    
+
     // Empty ports
     let result = policy.validate_ports(&[]);
     assert!(result.is_err());
@@ -34,11 +34,11 @@ fn test_tool_level_permitted() {
     assert!(demonclaw::security::tool_level_permitted(ToolLevel::Intrusive, ToolLevel::Passive));
     assert!(demonclaw::security::tool_level_permitted(ToolLevel::Intrusive, ToolLevel::Active));
     assert!(demonclaw::security::tool_level_permitted(ToolLevel::Intrusive, ToolLevel::Intrusive));
-    
+
     // Active blocks intrusive
     assert!(!demonclaw::security::tool_level_permitted(ToolLevel::Active, ToolLevel::Intrusive));
     assert!(demonclaw::security::tool_level_permitted(ToolLevel::Active, ToolLevel::Active));
-    
+
     // Passive blocks active and intrusive
     assert!(!demonclaw::security::tool_level_permitted(ToolLevel::Passive, ToolLevel::Active));
     assert!(!demonclaw::security::tool_level_permitted(ToolLevel::Passive, ToolLevel::Intrusive));
@@ -48,10 +48,10 @@ fn test_tool_level_permitted() {
 fn test_engagement_context() {
     let mut policy = SecurityPolicy::default();
     policy.require_engagement_context = true;
-    
+
     // No engagement ID set
     assert!(policy.check_engagement_context("test").is_err());
-    
+
     // Set engagement ID
     policy.engagement_id = Some("test-engagement".to_string());
     assert!(policy.check_engagement_context("test").is_ok());

@@ -11,7 +11,7 @@ use tracing::{info, warn};
 pub trait EmbeddingProvider: Send + Sync {
     /// Generate embedding for text (returns vector of floats)
     async fn embed(&self, text: &str) -> Result<Vec<f32>>;
-    
+
     /// Get embedding dimension
     fn dimension(&self) -> usize;
 }
@@ -101,13 +101,13 @@ impl EmbeddingProvider for OpenAIEmbeddings {
         }
 
         let embedding_response: EmbeddingResponse = response.json().await?;
-        
+
         if embedding_response.data.is_empty() {
             bail!("Embedding API returned no results");
         }
 
         let embedding = embedding_response.data[0].embedding.clone();
-        
+
         if embedding.len() != self.dimension {
             warn!(
                 "Embedding dimension mismatch: expected {}, got {}",

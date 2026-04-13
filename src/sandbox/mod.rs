@@ -32,26 +32,26 @@ struct SandboxState {
 impl Sandbox {
     pub fn new() -> Result<Self> {
         info!("Initializing WebAssembly Sandbox (wasmtime) with fuel + timeout limits...");
-        
+
         let mut config = Config::new();
         // Enable fuel for instruction counting
         config.consume_fuel(true);
         // Enable epoch interruption for timeouts
         config.epoch_interruption(true);
-        
+
         let engine = Engine::new(&config)?;
-        
+
         // Default limits (can be overridden via env vars)
         let default_fuel = std::env::var("DEMONCLAW_SANDBOX_FUEL_LIMIT")
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(10_000_000); // 10M instructions default
-        
+
         let default_timeout_secs = std::env::var("DEMONCLAW_SANDBOX_TIMEOUT_SECS")
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(30); // 30 seconds default
-        
+
         Ok(Self {
             engine,
             default_fuel,

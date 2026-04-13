@@ -35,14 +35,14 @@ impl MemoryManager {
             .acquire_timeout(std::time::Duration::from_secs(2))
             .connect(db_url)
             .await?;
-        
+
         let embeddings = EmbeddingManager::from_env();
         if embeddings.is_available() {
             info!("Embedding provider available (dim={})", embeddings.dimension());
         } else {
             warn!("No embedding provider configured, using stub (FTS only)");
         }
-            
+
         Ok(Self { pool, embeddings })
     }
 
@@ -131,7 +131,7 @@ impl MemoryManager {
         sqlx::query("ANALYZE memory_chunks").execute(&self.pool).await?;
         Ok(())
     }
-    
+
     pub async fn retrieve_context(&self, query: &str) -> Result<Vec<String>> {
         // Hybrid retrieval: RRF (Reciprocal Rank Fusion) of vector + FTS
         let matches = self.hybrid_retrieve(query, 10).await?;
@@ -146,10 +146,10 @@ impl MemoryManager {
         if self.embeddings.is_available() {
             // Generate query embedding
             let query_embedding = self.embeddings.embed(query).await?;
-            
+
             // Run vector similarity query
             let embedding_literal = embedding_to_pgvector_literal(&query_embedding);
-            
+
             let rows = sqlx::query(
                 r#"
                 SELECT
