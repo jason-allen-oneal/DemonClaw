@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
@@ -9,6 +10,7 @@ pub struct Envelope {
     pub content: String,
     #[serde(default)]
     pub metadata: Value,
+    pub received_at: DateTime<Utc>,
 }
 
 impl Envelope {
@@ -18,6 +20,7 @@ impl Envelope {
             source: source.into(),
             content: content.into(),
             metadata: Value::Null,
+            received_at: Utc::now(),
         }
     }
 }
@@ -29,4 +32,16 @@ pub struct EvidenceEvent {
     pub kind: String,
     #[serde(default)]
     pub detail: Value,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum JobState {
+    Received,
+    Classified,
+    Running,
+    Completed,
+    Failed,
+    Denied,
+    Ignored,
 }
