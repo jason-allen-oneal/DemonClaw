@@ -110,17 +110,21 @@ impl EvidenceLocker {
         .execute(&self.pool)
         .await?;
 
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_evidence_timestamp ON evidence_chain(timestamp)")
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_evidence_timestamp ON evidence_chain(timestamp)",
+        )
+        .execute(&self.pool)
+        .await?;
 
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_evidence_kind ON evidence_chain(kind)")
             .execute(&self.pool)
             .await?;
 
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_evidence_envelope ON evidence_chain(envelope_id)")
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_evidence_envelope ON evidence_chain(envelope_id)",
+        )
+        .execute(&self.pool)
+        .await?;
 
         info!("Evidence Locker schema initialized.");
         Ok(())

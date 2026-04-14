@@ -16,4 +16,3 @@ pub fn ensure_crypto_provider_installed() {
             .expect("failed to install rustls ring crypto provider");
     });
 }
-
