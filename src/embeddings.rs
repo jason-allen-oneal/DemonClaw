@@ -44,6 +44,7 @@ struct EmbeddingData {
 
 impl OpenAIEmbeddings {
     pub fn new(base_url: String, api_key: String, model: String, dimension: usize) -> Self {
+        crate::tls::ensure_crypto_provider_installed();
         info!(
             "OpenAI Embeddings provider initialized: base_url={} model={} dim={}",
             base_url, model, dimension

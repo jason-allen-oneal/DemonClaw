@@ -91,6 +91,8 @@ impl EvidenceLocker {
     }
 
     pub async fn init_schema(&self) -> Result<()> {
+        // NOTE: sqlx prepares statements by default for Postgres, which rejects multiple
+        // SQL commands in a single prepared statement. Keep these as separate executes.
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS evidence_chain (
@@ -102,14 +104,23 @@ impl EvidenceLocker {
                 envelope_id UUID,
                 hash TEXT NOT NULL,
                 created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            CREATE INDEX IF NOT EXISTS idx_evidence_timestamp ON evidence_chain(timestamp);
-            CREATE INDEX IF NOT EXISTS idx_evidence_kind ON evidence_chain(kind);
-            CREATE INDEX IF NOT EXISTS idx_evidence_envelope ON evidence_chain(envelope_id);
+            )
             "#,
         )
         .execute(&self.pool)
         .await?;
+
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_evidence_timestamp ON evidence_chain(timestamp)")
+            .execute(&self.pool)
+            .await?;
+
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_evidence_kind ON evidence_chain(kind)")
+            .execute(&self.pool)
+            .await?;
+
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_evidence_envelope ON evidence_chain(envelope_id)")
+            .execute(&self.pool)
+            .await?;
 
         info!("Evidence Locker schema initialized.");
         Ok(())

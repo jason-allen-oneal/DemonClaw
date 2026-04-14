@@ -3,4 +3,5 @@ SPEC.md
 
 # Build artifacts
 /target/
+**/target/
 **/*.rs.bk

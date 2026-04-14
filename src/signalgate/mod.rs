@@ -190,6 +190,8 @@ impl SignalGate {
     pub fn new(config: SignalGateConfig) -> Result<Self> {
         config.validate_upstream_url(&config.llm_base_url, "default")?;
 
+        crate::tls::ensure_crypto_provider_installed();
+
         info!("SignalGate semantic routing proxy initialized.");
         Ok(Self {
             config,
