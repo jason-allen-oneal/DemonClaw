@@ -7,8 +7,8 @@
 
 ## Code health
 - [x] `cargo test`
-- [ ] `cargo fmt --all -- --check`
-- [ ] `cargo clippy --all-targets --all-features -- -D warnings`
+- [x] `cargo fmt --all -- --check`
+- [x] `cargo clippy --all-targets --all-features -- -D warnings`
 
 ## Runtime smoke
 - [ ] start Postgres/pgvector via `docker compose up -d`

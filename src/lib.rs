@@ -11,4 +11,5 @@ pub mod scanner;
 pub mod scheduler;
 pub mod security;
 pub mod signalgate;
+pub mod tls;
 pub mod types;
