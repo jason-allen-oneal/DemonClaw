@@ -1,7 +1,11 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use super::{runner::runner_for_target, types::Target};
+use super::{
+    finders::detect_vuln_findings,
+    runner::runner_for_target,
+    types::Target,
+};
 
 fn truncate(s: &str, max: usize) -> String {
     if s.len() <= max {
@@ -39,21 +43,44 @@ pub struct ApplyResult {
     pub stderr: String,
 }
 
+fn bool_from_env(name: &str, default: bool) -> bool {
+    std::env::var(name)
+        .ok()
+        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .unwrap_or(default)
+}
+
+pub fn is_action_allowed(action: &RemediationAction) -> bool {
+    match action {
+        RemediationAction::AptUpgrade { .. } => bool_from_env("DEMONCLAW_REMEDIATE_ALLOW_APT_UPGRADE", false),
+    }
+}
+
+fn parse_apt_get_simulated_upgraded_count(stdout: &str) -> Option<u32> {
+    for line in stdout.lines() {
+        let t = line.trim();
+        if let Some(pos) = t.find(" upgraded") {
+            let prefix = &t[..pos];
+            if let Some(last_token) = prefix.split_whitespace().next_back()
+                && let Ok(n) = last_token.parse::<u32>()
+            {
+                return Some(n);
+            }
+        }
+    }
+    None
+}
+
 pub fn plan_remediation(target: Target) -> Result<RemediationPlan> {
     let runner = runner_for_target(&target);
 
-    // Phase 2 (skeleton): use `apt-get -s upgrade` to see if upgrades are available.
+    let findings = detect_vuln_findings(target.clone())?;
+    let wants_apt_upgrade = findings.iter().any(|f| f.kind == "packages_outdated");
+
+    // Use `apt-get -s upgrade` to see if upgrades are available.
     let (code, out, err) = runner.run("apt-get", &["-s", "upgrade"])?;
 
-    let use_sudo = std::env::var("DEMONCLAW_REMEDIATE_USE_SUDO")
-        .ok()
-        .map(|v| {
-            matches!(
-                v.trim().to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on"
-            )
-        })
-        .unwrap_or(true);
+    let use_sudo = bool_from_env("DEMONCLAW_REMEDIATE_USE_SUDO", true);
 
     let mut notes = String::new();
     if code == -1 {
@@ -73,8 +100,28 @@ pub fn plan_remediation(target: Target) -> Result<RemediationPlan> {
         notes.push_str(&truncate(&err, 8_000));
     }
 
-    // Always propose an upgrade action when apt exists.
-    // (Future: parse output and only propose if changes exist; add allowlists and security-only mode.)
+    let upgraded = parse_apt_get_simulated_upgraded_count(&out).unwrap_or(0);
+
+    if !wants_apt_upgrade {
+        notes.push_str("\n\nNo remediation actions planned: no packages_outdated finding." );
+        return Ok(RemediationPlan {
+            target,
+            actions: vec![],
+            notes,
+        });
+    }
+
+    if upgraded == 0 {
+        notes.push_str("\n\nNo remediation actions planned: apt reports 0 upgraded." );
+        return Ok(RemediationPlan {
+            target,
+            actions: vec![],
+            notes,
+        });
+    }
+
+    notes.push_str("\n\nPlanned action: apt upgrade (apply requires DEMONCLAW_REMEDIATE_ALLOW_APT_UPGRADE=1 + GhostMCP approval).\n");
+
     Ok(RemediationPlan {
         target,
         actions: vec![RemediationAction::AptUpgrade { use_sudo }],
