@@ -4,6 +4,7 @@ use tokio::sync::{Semaphore, mpsc};
 use tracing::{error, info, info_span, warn};
 
 use crate::{
+    active_defense::commands::handle_active_defense_command,
     darkprompt::DarkPrompt,
     evidence::EvidenceLocker,
     ghostmcp::GhostMcp,
@@ -111,16 +112,47 @@ impl AgentLoop {
                 Intent::Command => {
                     self.record_job_state(&env, JobState::Running, json!({"pipeline": "command"}))
                         .await;
-                    if env.content.trim() == "memory:compact"
-                        && let Err(e) = self.memory.compact_memory().await
-                    {
-                        self.record_job_state(
+
+                    let cmd = env.content.trim();
+                    if cmd == "memory:compact" {
+                        if let Err(e) = self.memory.compact_memory().await {
+                            self.record_job_state(
+                                &env,
+                                JobState::Failed,
+                                json!({"pipeline": "command", "error": e.to_string()}),
+                            )
+                            .await;
+                            continue;
+                        }
+                    } else {
+                        match handle_active_defense_command(
                             &env,
-                            JobState::Failed,
-                            json!({"pipeline": "command", "error": e.to_string()}),
+                            &self.security_policy,
+                            &self.ghostmcp,
+                            &self.evidence_locker,
                         )
-                        .await;
-                        continue;
+                        .await
+                        {
+                            Ok(true) => {}
+                            Ok(false) => {
+                                self.record_job_state(
+                                    &env,
+                                    JobState::Ignored,
+                                    json!({"pipeline": "command", "reason": "unknown command"}),
+                                )
+                                .await;
+                                continue;
+                            }
+                            Err(e) => {
+                                self.record_job_state(
+                                    &env,
+                                    JobState::Failed,
+                                    json!({"pipeline": "command", "error": e.to_string()}),
+                                )
+                                .await;
+                                continue;
+                            }
+                        }
                     }
                     info!("Command routed.");
                     self.record_job_state(

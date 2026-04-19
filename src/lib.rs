@@ -1,3 +1,4 @@
+pub mod active_defense;
 pub mod channels;
 pub mod config;
 pub mod darkprompt;

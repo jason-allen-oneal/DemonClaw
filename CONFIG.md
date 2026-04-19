@@ -63,6 +63,41 @@ DemonClaw uses environment variables for configuration. All settings can be prov
 | `GHOSTMCP_ALLOWED_ACTIONS` | - | Comma-separated allowlisted actions |
 | `DC_SECRET_*` | - | Secret store (e.g., `DC_SECRET_API_KEY`) |
 
+## Active Defense (Intrusion + Vulnernability Scanning)
+
+Phase 1 introduces a probe framework for local and SSH-based scans.
+
+### SSH Targeting
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEMONCLAW_SSH_ALLOWLIST` | - | Comma-separated allowed SSH destinations (exact `user@host` or host-only). If unset, SSH scans are denied unless `DEMONCLAW_SSH_ALLOW_ANY=1`. |
+| `DEMONCLAW_SSH_ALLOW_ANY` | `false` | If true, allow SSH scans to any destination (dev only). |
+
+### Commands
+
+Send these via REPL or `POST /ingest` with `{ "content": "..." }`:
+
+- `scan:vuln [--target local|ssh:user@host]`
+- `scan:intrusion [--target local|ssh:user@host]`
+- `verify [--target local|ssh:user@host]` (safe PoCs, GhostMCP approval required)
+
+Remediation (Phase 2 skeleton):
+
+- `remediate:plan [--target local|ssh:user@host]`
+- `remediate:apply [--target local|ssh:user@host]` (GhostMCP approval required)
+
+### Remediation toggles
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEMONCLAW_REMEDIATE_USE_SUDO` | `true` | If true, remediation actions will run via `sudo -n` (non-interactive). |
+
+Notes:
+- Remote scans require engagement context when `DEMONCLAW_REQUIRE_ENGAGEMENT=1`.
+- `verify` runs read-only checks (for example `sshd -T`) to confirm hardening.
+- Future phases will add richer findings, policy-driven auto-remediation allowlists, maintenance windows, and post-remediation verification.
+
 ## Example .env File
 
 ```bash
