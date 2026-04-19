@@ -6,11 +6,17 @@ use demonclaw::{
     memory::MemoryManager,
     sandbox::Sandbox,
     scanner::Scanner,
-    scheduler::Scheduler,
     security::SecurityPolicy,
     signalgate::{SignalGate, SignalGateConfig},
     types::Envelope,
 };
+
+fn test_payload_wasm_path() -> String {
+    format!(
+        "{}/payloads/test_payload/target/wasm32-wasip1/release/test_payload.wasm",
+        env!("CARGO_MANIFEST_DIR")
+    )
+}
 
 fn test_db_url() -> String {
     std::env::var("DATABASE_URL")
@@ -19,6 +25,15 @@ fn test_db_url() -> String {
 
 #[tokio::test]
 async fn e2e_payload_to_evidence_flow() -> anyhow::Result<()> {
+    let wasm_path = test_payload_wasm_path();
+    if !std::path::Path::new(&wasm_path).exists() {
+        println!(
+            "Skipping e2e_payload_to_evidence_flow, payload wasm not built: {}",
+            wasm_path
+        );
+        return Ok(());
+    }
+
     let memory = match MemoryManager::new(&test_db_url()).await {
         Ok(mm) => mm,
         Err(e) => {
@@ -60,16 +75,12 @@ async fn e2e_payload_to_evidence_flow() -> anyhow::Result<()> {
     let (tx, rx) = tokio::sync::mpsc::channel(8);
     let loop_handle = tokio::spawn(async move { agent_loop.run(rx).await });
 
-    let scheduler = Scheduler::new(tx.clone());
-    let send_handle = tokio::spawn(async move {
-        let env = Envelope::new("http", "payload:test_payload");
-        tx.send(env).await.expect("failed to send envelope");
-        scheduler.run_heartbeat(3600).await;
-    });
+    let env = Envelope::new("http", "payload:test_payload");
+    tx.send(env).await.expect("failed to send envelope");
+    drop(tx);
 
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    send_handle.abort();
-    loop_handle.abort();
+    // Wait for the loop to drain the channel and exit.
+    tokio::time::timeout(std::time::Duration::from_secs(5), loop_handle).await???;
 
     let received = evidence.query_by_kind("job.received", 10).await?;
     let completed = evidence.query_by_kind("job.completed", 10).await?;

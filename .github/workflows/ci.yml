@@ -46,6 +46,11 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Build WASM payloads (for e2e)
+        run: |
+          rustup target add wasm32-wasip1
+          (cd payloads/test_payload && cargo build --target wasm32-wasip1 --release)
+
       - name: Format
         run: cargo fmt --all -- --check
 
