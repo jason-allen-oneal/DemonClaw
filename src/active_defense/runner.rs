@@ -3,21 +3,12 @@ use std::process::Command;
 
 use super::types::Target;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SshPolicy {
     /// Comma-separated allowlist entries (hostnames or exact destinations).
     /// If empty, SSH is denied unless `allow_any` is true.
     pub allowlist: Vec<String>,
     pub allow_any: bool,
-}
-
-impl Default for SshPolicy {
-    fn default() -> Self {
-        Self {
-            allowlist: Vec::new(),
-            allow_any: false,
-        }
-    }
 }
 
 impl SshPolicy {
@@ -63,7 +54,7 @@ impl SshPolicy {
         }
 
         // Also allowlist by host (strip user@ if present).
-        let host = dest.split('@').last().unwrap_or(dest);
+        let host = dest.split('@').next_back().unwrap_or(dest);
         if self.allowlist.iter().any(|a| a == host) {
             return Ok(());
         }

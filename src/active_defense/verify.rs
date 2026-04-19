@@ -78,70 +78,67 @@ fn detect_findings(target: Target) -> Result<Vec<Finding>> {
 
 fn run_sshd_t(runner: &dyn CommandRunner) -> Result<(i32, String, String)> {
     // `sshd -T` prints effective configuration. Safe read-only.
-    Ok(runner.run("sshd", &["-T"])?)
+    runner.run("sshd", &["-T"])
 }
 
 fn verify_finding(target: &Target, finding: &Finding) -> Result<Vec<Verification>> {
     let runner = runner_for_target(target);
     let mut out = Vec::new();
 
-    match finding.kind.as_str() {
-        "ssh_exposed" => {
-            let (code, stdout, stderr) = run_sshd_t(runner.as_ref())?;
-            if code == -1 {
-                out.push(Verification {
-                    finding_kind: finding.kind.clone(),
-                    target: target.clone(),
-                    method: "sshd -T (missing)".to_string(),
-                    result: VerificationResult::Inconclusive,
-                    notes: stderr,
-                });
-                return Ok(out);
-            }
-
-            let cfg = stdout.to_ascii_lowercase();
-            let permit_root = cfg.lines().any(|l| l.trim() == "permitrootlogin yes");
-            let password_auth = cfg
-                .lines()
-                .any(|l| l.trim() == "passwordauthentication yes");
-
-            if permit_root {
-                out.push(Verification {
-                    finding_kind: finding.kind.clone(),
-                    target: target.clone(),
-                    method: "sshd -T: PermitRootLogin".to_string(),
-                    result: VerificationResult::Fail,
-                    notes: "PermitRootLogin=yes".to_string(),
-                });
-            } else {
-                out.push(Verification {
-                    finding_kind: finding.kind.clone(),
-                    target: target.clone(),
-                    method: "sshd -T: PermitRootLogin".to_string(),
-                    result: VerificationResult::Pass,
-                    notes: "PermitRootLogin not 'yes'".to_string(),
-                });
-            }
-
-            if password_auth {
-                out.push(Verification {
-                    finding_kind: finding.kind.clone(),
-                    target: target.clone(),
-                    method: "sshd -T: PasswordAuthentication".to_string(),
-                    result: VerificationResult::Fail,
-                    notes: "PasswordAuthentication=yes".to_string(),
-                });
-            } else {
-                out.push(Verification {
-                    finding_kind: finding.kind.clone(),
-                    target: target.clone(),
-                    method: "sshd -T: PasswordAuthentication".to_string(),
-                    result: VerificationResult::Pass,
-                    notes: "PasswordAuthentication not 'yes'".to_string(),
-                });
-            }
+    if finding.kind.as_str() == "ssh_exposed" {
+        let (code, stdout, stderr) = run_sshd_t(runner.as_ref())?;
+        if code == -1 {
+            out.push(Verification {
+                finding_kind: finding.kind.clone(),
+                target: target.clone(),
+                method: "sshd -T (missing)".to_string(),
+                result: VerificationResult::Inconclusive,
+                notes: stderr,
+            });
+            return Ok(out);
         }
-        _ => {}
+
+        let cfg = stdout.to_ascii_lowercase();
+        let permit_root = cfg.lines().any(|l| l.trim() == "permitrootlogin yes");
+        let password_auth = cfg
+            .lines()
+            .any(|l| l.trim() == "passwordauthentication yes");
+
+        if permit_root {
+            out.push(Verification {
+                finding_kind: finding.kind.clone(),
+                target: target.clone(),
+                method: "sshd -T: PermitRootLogin".to_string(),
+                result: VerificationResult::Fail,
+                notes: "PermitRootLogin=yes".to_string(),
+            });
+        } else {
+            out.push(Verification {
+                finding_kind: finding.kind.clone(),
+                target: target.clone(),
+                method: "sshd -T: PermitRootLogin".to_string(),
+                result: VerificationResult::Pass,
+                notes: "PermitRootLogin not 'yes'".to_string(),
+            });
+        }
+
+        if password_auth {
+            out.push(Verification {
+                finding_kind: finding.kind.clone(),
+                target: target.clone(),
+                method: "sshd -T: PasswordAuthentication".to_string(),
+                result: VerificationResult::Fail,
+                notes: "PasswordAuthentication=yes".to_string(),
+            });
+        } else {
+            out.push(Verification {
+                finding_kind: finding.kind.clone(),
+                target: target.clone(),
+                method: "sshd -T: PasswordAuthentication".to_string(),
+                result: VerificationResult::Pass,
+                notes: "PasswordAuthentication not 'yes'".to_string(),
+            });
+        }
     }
 
     Ok(out)
