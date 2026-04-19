@@ -111,10 +111,10 @@ fn parse_apt_get_simulated_upgraded_count(stdout: &str) -> Option<u32> {
         let t = line.trim();
         if let Some(pos) = t.find(" upgraded") {
             let prefix = &t[..pos];
-            if let Some(last_token) = prefix.split_whitespace().next_back() {
-                if let Ok(n) = last_token.parse::<u32>() {
-                    return Some(n);
-                }
+            if let Some(last_token) = prefix.split_whitespace().next_back()
+                && let Ok(n) = last_token.parse::<u32>()
+            {
+                return Some(n);
             }
         }
     }
