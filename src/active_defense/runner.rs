@@ -90,17 +90,33 @@ pub struct SshRunner {
     pub policy: SshPolicy,
 }
 
+fn shell_escape(s: &str) -> String {
+    // Single-quote shell escaping.
+    // abc -> 'abc'
+    // a'b -> 'a'"'"'b'
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('\'');
+    for ch in s.chars() {
+        if ch == '\'' {
+            out.push_str("'\"'\"'");
+        } else {
+            out.push(ch);
+        }
+    }
+    out.push('\'');
+    out
+}
+
 impl CommandRunner for SshRunner {
     fn run(&self, program: &str, args: &[&str]) -> Result<(i32, String, String)> {
         self.policy.check_destination(&self.destination)?;
 
-        // We only execute fixed probe commands (no user-provided remote command strings).
-        // For now, encode as a single remote command string.
-        let mut remote = String::new();
-        remote.push_str(program);
+        // Encode as a single remote command string, with shell-escaped argv to avoid
+        // injection and preserve spaces/special characters.
+        let mut remote = shell_escape(program);
         for a in args {
             remote.push(' ');
-            remote.push_str(a);
+            remote.push_str(&shell_escape(a));
         }
 
         let out = Command::new("ssh")
@@ -122,6 +138,18 @@ impl CommandRunner for SshRunner {
             )),
             Err(e) => Ok((-1, String::new(), e.to_string())),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shell_escape_wraps_and_escapes_single_quotes() {
+        assert_eq!(shell_escape("abc"), "'abc'");
+        assert_eq!(shell_escape("a'b"), "'a'\"'\"'b'");
+        assert_eq!(shell_escape(""), "''");
     }
 }
 
