@@ -1,4 +1,5 @@
 pub mod channels;
+pub mod active_defense;
 pub mod config;
 pub mod darkprompt;
 pub mod embeddings;

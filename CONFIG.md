@@ -63,6 +63,28 @@ DemonClaw uses environment variables for configuration. All settings can be prov
 | `GHOSTMCP_ALLOWED_ACTIONS` | - | Comma-separated allowlisted actions |
 | `DC_SECRET_*` | - | Secret store (e.g., `DC_SECRET_API_KEY`) |
 
+## Active Defense (Intrusion + Vulnernability Scanning)
+
+Phase 1 introduces a probe framework for local and SSH-based scans.
+
+### SSH Targeting
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEMONCLAW_SSH_ALLOWLIST` | - | Comma-separated allowed SSH destinations (exact `user@host` or host-only). If unset, SSH scans are denied unless `DEMONCLAW_SSH_ALLOW_ANY=1`. |
+| `DEMONCLAW_SSH_ALLOW_ANY` | `false` | If true, allow SSH scans to any destination (dev only). |
+
+### Commands
+
+Send these via REPL or `POST /ingest` with `{ "content": "..." }`:
+
+- `scan:vuln [--target local|ssh:user@host]`
+- `scan:intrusion [--target local|ssh:user@host]`
+
+Notes:
+- Remote scans require engagement context when `DEMONCLAW_REQUIRE_ENGAGEMENT=1`.
+- Future phases will add `verify`, `remediate:plan`, and `remediate:apply` (GhostMCP-gated).
+
 ## Example .env File
 
 ```bash

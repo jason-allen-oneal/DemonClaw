@@ -207,6 +207,12 @@ impl SignalGate {
             return Ok(local);
         }
 
+        // If no upstream key is configured, fall back to query semantics.
+        // (Keeps DemonClaw usable offline while still allowing deterministic command routing.)
+        if self.config.llm_api_key.trim().is_empty() {
+            return Ok(Intent::Query);
+        }
+
         // Apply user forwarding policy
         let forwarded_user = self
             .config
@@ -284,5 +290,15 @@ fn classify_locally(input: &str) -> Option<Intent> {
     if matches!(trimmed, "memory:compact" | "HEARTBEAT") {
         return Some(Intent::Command);
     }
-    Some(Intent::Query)
+
+    // Active defense commands (local deterministic parsing).
+    if trimmed.starts_with("scan:")
+        || trimmed.starts_with("remediate:")
+        || trimmed.starts_with("verify")
+        || trimmed.starts_with("intrusion:")
+    {
+        return Some(Intent::Command);
+    }
+
+    None
 }
