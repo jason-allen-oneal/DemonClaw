@@ -20,7 +20,7 @@ enum ActiveDefenseCommand {
     RemediatePlan { target: Target },
     RemediateApply { target: Target },
     Verify { target: Target },
-    DefendRun { target: Target },
+    DefendRun { target: Target, apply: bool },
 }
 
 fn parse_target(tokens: &[&str]) -> Target {
@@ -45,12 +45,17 @@ fn parse_target(tokens: &[&str]) -> Target {
     Target::Local
 }
 
+fn has_flag(tokens: &[&str], flag: &str) -> bool {
+    tokens.iter().any(|t| *t == flag)
+}
+
 fn parse_active_defense_command(env: &Envelope) -> Option<ActiveDefenseCommand> {
     let content = env.content.trim();
     let parts: Vec<&str> = content.split_whitespace().collect();
     let head = parts.first().copied().unwrap_or("");
 
     let target = parse_target(&parts);
+    let apply = has_flag(&parts, "--apply");
 
     match head {
         "scan:vuln" => Some(ActiveDefenseCommand::Scan(ScanRequest {
@@ -64,7 +69,7 @@ fn parse_active_defense_command(env: &Envelope) -> Option<ActiveDefenseCommand> 
         "remediate:plan" => Some(ActiveDefenseCommand::RemediatePlan { target }),
         "remediate:apply" => Some(ActiveDefenseCommand::RemediateApply { target }),
         "verify" => Some(ActiveDefenseCommand::Verify { target }),
-        "defend:run" => Some(ActiveDefenseCommand::DefendRun { target }),
+        "defend:run" => Some(ActiveDefenseCommand::DefendRun { target, apply }),
         _ => None,
     }
 }
@@ -277,7 +282,7 @@ pub async fn handle_active_defense_command(
 
             Ok(true)
         }
-        ActiveDefenseCommand::DefendRun { target } => {
+        ActiveDefenseCommand::DefendRun { target, apply } => {
             if matches!(target, Target::Ssh { .. }) {
                 security.check_engagement_context("active_defense_remote_defend_run")?;
             }
@@ -366,6 +371,57 @@ pub async fn handle_active_defense_command(
                 )
                 .await?;
 
+            if apply {
+                let approved_apply = ghostmcp
+                    .authorize_action("remediation:apply")
+                    .await
+                    .unwrap_or(false);
+                if approved_apply {
+                    let plan = plan_remediation(target.clone())?;
+                    let mut results = Vec::new();
+                    for action in plan.actions {
+                        if !is_action_allowed(&action) {
+                            evidence
+                                .record(
+                                    "active_defense.remediation.apply.denied",
+                                    json!({"target": target, "reason": "action not allowed by policy", "action": action}),
+                                    Some(env.id),
+                                )
+                                .await?;
+                            continue;
+                        }
+                        let res = apply_action(target.clone(), action)?;
+                        results.push(res);
+                    }
+
+                    evidence
+                        .record(
+                            "active_defense.remediation.apply.completed",
+                            json!({"target": target, "results": results}),
+                            Some(env.id),
+                        )
+                        .await?;
+
+                    // Post-remediation verification (still safe/read-only).
+                    let (_findings2, verifications) = run_verify(target.clone())?;
+                    evidence
+                        .record(
+                            "active_defense.verifications.post_remediation",
+                            evidence_payload_for_verifications(&verifications),
+                            Some(env.id),
+                        )
+                        .await?;
+                } else {
+                    evidence
+                        .record(
+                            "active_defense.remediation.apply.denied",
+                            json!({"target": target, "reason": "ghostmcp denied"}),
+                            Some(env.id),
+                        )
+                        .await?;
+                }
+            }
+
             evidence
                 .record(
                     "active_defense.defend_run.completed",
@@ -435,7 +491,23 @@ mod tests {
         let env = Envelope::new("repl", "defend:run --target local");
         let cmd = parse_active_defense_command(&env).unwrap();
         match cmd {
-            ActiveDefenseCommand::DefendRun { target } => assert_eq!(target, Target::Local),
+            ActiveDefenseCommand::DefendRun { target, apply } => {
+                assert_eq!(target, Target::Local);
+                assert!(!apply);
+            }
+            _ => panic!("expected defend:run"),
+        }
+    }
+
+    #[test]
+    fn parse_defend_run_apply_flag() {
+        let env = Envelope::new("repl", "defend:run --apply --target local");
+        let cmd = parse_active_defense_command(&env).unwrap();
+        match cmd {
+            ActiveDefenseCommand::DefendRun { target, apply } => {
+                assert_eq!(target, Target::Local);
+                assert!(apply);
+            }
             _ => panic!("expected defend:run"),
         }
     }
