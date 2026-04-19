@@ -49,6 +49,17 @@ fn run_redis_ping(runner: &dyn CommandRunner) -> Result<(i32, String, String)> {
     runner.run("redis-cli", &["-h", "127.0.0.1", "ping"])
 }
 
+fn tcp_connect_loopback(runner: &dyn CommandRunner, port: u16) -> Result<(i32, String, String)> {
+    let cmd = format!("</dev/tcp/127.0.0.1/{port}");
+
+    let (code, out, err) = runner.run("timeout", &["2", "bash", "-lc", &cmd])?;
+    if code != -1 {
+        return Ok((code, out, err));
+    }
+
+    runner.run("bash", &["-lc", &cmd])
+}
+
 fn parse_apt_get_simulated_upgraded_count(stdout: &str) -> Option<u32> {
     // Example summary line:
     // "0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded."
@@ -263,6 +274,90 @@ fn verify_finding(target: &Target, finding: &Finding) -> Result<Vec<Verification
                     method: format!("http get 127.0.0.1:9200 via {tool}"),
                     result: VerificationResult::Inconclusive,
                     notes: truncate(&format!("exit={code}\n{stderr}"), 4000),
+                });
+            }
+        }
+        "mongodb_exposed" => {
+            let (code, _out, err) = tcp_connect_loopback(runner.as_ref(), 27017)?;
+            if code == 0 {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "tcp connect 127.0.0.1:27017".to_string(),
+                    result: VerificationResult::Fail,
+                    notes: "TCP connect succeeded on loopback".to_string(),
+                });
+            } else if code == -1 {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "tcp connect 127.0.0.1:27017 (missing bash/timeout?)".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&err, 2000),
+                });
+            } else {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "tcp connect 127.0.0.1:27017".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: format!("connect failed (exit={code})"),
+                });
+            }
+        }
+        "memcached_exposed" => {
+            let (code, _out, err) = tcp_connect_loopback(runner.as_ref(), 11211)?;
+            if code == 0 {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "tcp connect 127.0.0.1:11211".to_string(),
+                    result: VerificationResult::Fail,
+                    notes: "TCP connect succeeded on loopback".to_string(),
+                });
+            } else if code == -1 {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "tcp connect 127.0.0.1:11211 (missing bash/timeout?)".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&err, 2000),
+                });
+            } else {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "tcp connect 127.0.0.1:11211".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: format!("connect failed (exit={code})"),
+                });
+            }
+        }
+        "postgres_exposed" => {
+            let (code, _out, err) = tcp_connect_loopback(runner.as_ref(), 5432)?;
+            if code == 0 {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "tcp connect 127.0.0.1:5432".to_string(),
+                    result: VerificationResult::Fail,
+                    notes: "TCP connect succeeded on loopback".to_string(),
+                });
+            } else if code == -1 {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "tcp connect 127.0.0.1:5432 (missing bash/timeout?)".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&err, 2000),
+                });
+            } else {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "tcp connect 127.0.0.1:5432".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: format!("connect failed (exit={code})"),
                 });
             }
         }
