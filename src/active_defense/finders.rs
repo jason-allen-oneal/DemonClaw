@@ -195,6 +195,50 @@ pub fn detect_intrusion_findings(target: Target) -> Result<Vec<Finding>> {
 
     let mut findings = Vec::new();
 
+    // UID 0 account checks.
+    let uid0 = run_probe(target.clone(), ProbeKind::Uid0Accounts)?;
+    if !uid0.skipped {
+        let accounts: Vec<&str> = uid0
+            .stdout
+            .lines()
+            .map(|l| l.trim())
+            .filter(|l| !l.is_empty())
+            .collect();
+        if accounts.len() > 1 {
+            findings.push(Finding {
+                kind: "multiple_uid0_accounts".to_string(),
+                severity: Severity::High,
+                title: "Multiple UID 0 accounts detected".to_string(),
+                detail: format!("UID0 accounts: {}", accounts.join(", ")),
+                target: target.clone(),
+            });
+        }
+    }
+
+    // Very coarse suspicious process checks.
+    let ps = run_probe(target.clone(), ProbeKind::ProcessList)?;
+    if !ps.skipped {
+        let mut suspicious = 0usize;
+        for line in ps.stdout.lines() {
+            let l = line.to_ascii_lowercase();
+            if l.contains("/tmp/") || l.contains("/dev/shm/") {
+                suspicious += 1;
+            }
+            if suspicious >= 5 {
+                break;
+            }
+        }
+        if suspicious > 0 {
+            findings.push(Finding {
+                kind: "suspicious_process_paths".to_string(),
+                severity: Severity::Medium,
+                title: "Suspicious process paths detected".to_string(),
+                detail: format!("Found {suspicious} processes referencing /tmp or /dev/shm."),
+                target: target.clone(),
+            });
+        }
+    }
+
     if accepted_root > 0 {
         findings.push(Finding {
             kind: "ssh_root_login_accepted_recent".to_string(),

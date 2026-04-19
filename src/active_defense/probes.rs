@@ -22,6 +22,8 @@ pub fn run_probe(target: Target, probe: ProbeKind) -> Result<ProbeResult> {
         ProbeKind::PackageInventory => probe_package_inventory(target, runner.as_ref()),
         ProbeKind::UpgradablePackages => probe_upgradable_packages(target, runner.as_ref()),
         ProbeKind::SshAuthLog => probe_ssh_auth_log(target, runner.as_ref()),
+        ProbeKind::Uid0Accounts => probe_uid0_accounts(target, runner.as_ref()),
+        ProbeKind::ProcessList => probe_process_list(target, runner.as_ref()),
     }
 }
 
@@ -173,6 +175,64 @@ fn probe_ssh_auth_log(target: Target, runner: &dyn CommandRunner) -> Result<Prob
         skipped,
         skip_reason: if skipped {
             Some("missing journalctl/auth.log".to_string())
+        } else {
+            None
+        },
+    })
+}
+
+fn probe_uid0_accounts(target: Target, runner: &dyn CommandRunner) -> Result<ProbeResult> {
+    // Read-only. Extract UID 0 accounts.
+    let (code, out, err) = runner.run("awk", &["-F:", "$3==0{print $1}", "/etc/passwd"])?;
+    let skipped = code == -1;
+
+    let count = if skipped {
+        0
+    } else {
+        out.lines().filter(|l| !l.trim().is_empty()).count()
+    };
+
+    Ok(ProbeResult {
+        target,
+        probe: ProbeKind::Uid0Accounts,
+        summary: if skipped {
+            "skipped (no awk)".to_string()
+        } else {
+            format!("uid0 accounts captured (count={count})")
+        },
+        stdout: truncate(&out, 8000),
+        stderr: truncate(&err, 2000),
+        exit_code: code,
+        skipped,
+        skip_reason: if skipped {
+            Some("missing awk".to_string())
+        } else {
+            None
+        },
+    })
+}
+
+fn probe_process_list(target: Target, runner: &dyn CommandRunner) -> Result<ProbeResult> {
+    // Read-only snapshot.
+    let (code, out, err) = runner.run(
+        "ps",
+        &["-eo", "pid,user,comm,args", "--no-headers"],
+    )?;
+    let skipped = code == -1;
+    Ok(ProbeResult {
+        target,
+        probe: ProbeKind::ProcessList,
+        summary: if skipped {
+            "skipped (no ps)".to_string()
+        } else {
+            "process list captured".to_string()
+        },
+        stdout: truncate(&out, 64_000),
+        stderr: truncate(&err, 8_000),
+        exit_code: code,
+        skipped,
+        skip_reason: if skipped {
+            Some("missing ps".to_string())
         } else {
             None
         },
