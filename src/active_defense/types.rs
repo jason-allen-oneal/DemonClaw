@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 pub enum Target {
     Local,
     /// SSH destination in the form `user@host` or `host`.
-    Ssh { destination: String },
+    Ssh {
+        destination: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

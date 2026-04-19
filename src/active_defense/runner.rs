@@ -24,7 +24,12 @@ impl SshPolicy {
     pub fn from_env() -> Self {
         let allow_any = std::env::var("DEMONCLAW_SSH_ALLOW_ANY")
             .ok()
-            .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+            .map(|v| {
+                matches!(
+                    v.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
             .unwrap_or(false);
 
         let allowlist = std::env::var("DEMONCLAW_SSH_ALLOWLIST")
@@ -35,7 +40,10 @@ impl SshPolicy {
             .filter(|s| !s.is_empty())
             .collect();
 
-        Self { allowlist, allow_any }
+        Self {
+            allowlist,
+            allow_any,
+        }
     }
 
     pub fn check_destination(&self, destination: &str) -> Result<()> {

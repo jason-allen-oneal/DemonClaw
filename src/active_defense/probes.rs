@@ -63,10 +63,7 @@ fn probe_listening_ports(target: Target, runner: &dyn CommandRunner) -> Result<P
 
 fn probe_package_inventory(target: Target, runner: &dyn CommandRunner) -> Result<ProbeResult> {
     // dpkg-query is the Kali/Debian standard.
-    let (code, out, err) = runner.run(
-        "dpkg-query",
-        &["-W", "-f=${Package}\t${Version}\n"],
-    )?;
+    let (code, out, err) = runner.run("dpkg-query", &["-W", "-f=${Package}\t${Version}\n"])?;
 
     let skipped = code == -1;
     Ok(ProbeResult {

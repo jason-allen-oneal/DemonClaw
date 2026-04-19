@@ -3,10 +3,7 @@ use serde_json::json;
 use tracing::info;
 
 use crate::{
-    evidence::EvidenceLocker,
-    ghostmcp::GhostMcp,
-    security::SecurityPolicy,
-    types::Envelope,
+    evidence::EvidenceLocker, ghostmcp::GhostMcp, security::SecurityPolicy, types::Envelope,
 };
 
 use super::{
