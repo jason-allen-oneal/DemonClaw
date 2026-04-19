@@ -101,18 +101,19 @@ Ingest commands as plain text envelopes:
 
 - `scan:vuln [--target local|ssh:user@host]`
 - `scan:intrusion [--target ...]`
-- `verify [--target ...]` (future)
-- `remediate:plan [--target ...]` (future)
-- `remediate:apply [--target ...]` (future, GhostMCP-gated)
+- `verify [--target ...]` (GhostMCP-gated, safe PoCs)
+- `remediate:plan [--target ...]`
+- `remediate:apply [--target ...]` (GhostMCP-gated)
+- `defend:run [--target ...]` (runs probes + findings + optional verify (GhostMCP-gated) + remediation plan)
 
 ## Phases
 
 ### Phase 1 (this PR series)
 
 - probe framework + target runner (local + ssh)
-- minimal probes (ports + packages)
+- minimal probes (ports + packages + auth log summary)
 - evidence recording for probe results
-- command routing for `scan:*`
+- command routing for `scan:*`, `verify`, `remediate:*`, `defend:run`
 
 ### Phase 2
 
@@ -121,9 +122,11 @@ Ingest commands as plain text envelopes:
 - GhostMCP approval boundary for apply
 
 Status (implemented skeleton):
-- `verify --target ...` (GhostMCP-gated) runs safe checks like `sshd -T` to validate hardening.
-- `remediate:plan` uses `apt-get -s upgrade` simulation.
-- `remediate:apply` runs non-interactive `apt-get -y upgrade` (GhostMCP-gated).
+- `scan:*` emits heuristic findings as evidence (for example exposed services, outdated packages).
+- `verify --target ...` (GhostMCP-gated) runs safe checks like `sshd -T`, Docker `/_ping`, and loopback TCP connect checks.
+- `remediate:plan` uses `apt-get -s upgrade` simulation and only proposes actions when upgrades are actually available.
+- `remediate:apply` runs non-interactive `apt-get -y upgrade` (GhostMCP-gated, and policy-allowlisted).
+- `defend:run` orchestrates scan + findings + verify + plan as a single command.
 
 ### Phase 3
 
