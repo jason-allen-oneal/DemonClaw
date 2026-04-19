@@ -8,8 +8,16 @@ use crate::{
 
 use super::{
     probes::run_probe,
+    remediation::{apply_action, plan_remediation},
     types::{ProbeKind, ScanKind, ScanRequest, Target},
 };
+
+#[derive(Debug, Clone)]
+enum ActiveDefenseCommand {
+    Scan(ScanRequest),
+    RemediatePlan { target: Target },
+    RemediateApply { target: Target },
+}
 
 fn parse_target(tokens: &[&str]) -> Target {
     // Default is local.
@@ -33,7 +41,7 @@ fn parse_target(tokens: &[&str]) -> Target {
     Target::Local
 }
 
-fn parse_scan_request(env: &Envelope) -> Option<ScanRequest> {
+fn parse_active_defense_command(env: &Envelope) -> Option<ActiveDefenseCommand> {
     let content = env.content.trim();
     let parts: Vec<&str> = content.split_whitespace().collect();
     let head = parts.first().copied().unwrap_or("");
@@ -41,14 +49,16 @@ fn parse_scan_request(env: &Envelope) -> Option<ScanRequest> {
     let target = parse_target(&parts);
 
     match head {
-        "scan:vuln" => Some(ScanRequest {
+        "scan:vuln" => Some(ActiveDefenseCommand::Scan(ScanRequest {
             kind: ScanKind::Vuln,
             target,
-        }),
-        "scan:intrusion" => Some(ScanRequest {
+        })),
+        "scan:intrusion" => Some(ActiveDefenseCommand::Scan(ScanRequest {
             kind: ScanKind::Intrusion,
             target,
-        }),
+        })),
+        "remediate:plan" => Some(ActiveDefenseCommand::RemediatePlan { target }),
+        "remediate:apply" => Some(ActiveDefenseCommand::RemediateApply { target }),
         _ => None,
     }
 }
@@ -59,55 +69,126 @@ pub async fn handle_active_defense_command(
     ghostmcp: &GhostMcp,
     evidence: &EvidenceLocker,
 ) -> Result<bool> {
-    let Some(req) = parse_scan_request(env) else {
+    let Some(cmd) = parse_active_defense_command(env) else {
         return Ok(false);
     };
 
-    // Remote operations require explicit engagement context.
-    if matches!(req.target, Target::Ssh { .. }) {
-        security.check_engagement_context("active_defense_remote_scan")?;
+    match cmd {
+        ActiveDefenseCommand::Scan(req) => {
+            // Remote operations require explicit engagement context.
+            if matches!(req.target, Target::Ssh { .. }) {
+                security.check_engagement_context("active_defense_remote_scan")?;
+            }
+
+            info!("Active defense scan requested: {:?}", req.kind);
+            evidence
+                .record(
+                    "active_defense.scan.started",
+                    json!({"kind": req.kind, "target": req.target}),
+                    Some(env.id),
+                )
+                .await?;
+
+            // Phase 1: just run a couple of probes and record their results.
+            let probe_set: &[ProbeKind] = match req.kind {
+                ScanKind::Vuln => &[ProbeKind::ListeningPorts, ProbeKind::PackageInventory],
+                ScanKind::Intrusion => &[ProbeKind::ListeningPorts],
+            };
+
+            for probe in probe_set {
+                let probe_target = req.target.clone();
+                let res = run_probe(probe_target, probe.clone())?;
+                evidence
+                    .record(
+                        "active_defense.probe.completed",
+                        json!({"result": res}),
+                        Some(env.id),
+                    )
+                    .await?;
+            }
+
+            evidence
+                .record(
+                    "active_defense.scan.completed",
+                    json!({"kind": req.kind, "target": req.target}),
+                    Some(env.id),
+                )
+                .await?;
+
+            Ok(true)
+        }
+        ActiveDefenseCommand::RemediatePlan { target } => {
+            if matches!(target, Target::Ssh { .. }) {
+                security.check_engagement_context("active_defense_remote_remediation_plan")?;
+            }
+
+            evidence
+                .record(
+                    "active_defense.remediation.plan.started",
+                    json!({"target": target}),
+                    Some(env.id),
+                )
+                .await?;
+
+            let plan = plan_remediation(target.clone())?;
+
+            evidence
+                .record(
+                    "active_defense.remediation.plan.completed",
+                    json!({"plan": plan}),
+                    Some(env.id),
+                )
+                .await?;
+
+            Ok(true)
+        }
+        ActiveDefenseCommand::RemediateApply { target } => {
+            if matches!(target, Target::Ssh { .. }) {
+                security.check_engagement_context("active_defense_remote_remediation_apply")?;
+            }
+
+            // Always require explicit approval for remediation apply.
+            let approved = ghostmcp
+                .authorize_action("remediation:apply")
+                .await
+                .unwrap_or(false);
+            if !approved {
+                evidence
+                    .record(
+                        "active_defense.remediation.apply.denied",
+                        json!({"target": target, "reason": "ghostmcp denied"}),
+                        Some(env.id),
+                    )
+                    .await?;
+                return Ok(true);
+            }
+
+            evidence
+                .record(
+                    "active_defense.remediation.apply.started",
+                    json!({"target": target}),
+                    Some(env.id),
+                )
+                .await?;
+
+            let plan = plan_remediation(target.clone())?;
+            let mut results = Vec::new();
+            for action in plan.actions {
+                let res = apply_action(target.clone(), action)?;
+                results.push(res);
+            }
+
+            evidence
+                .record(
+                    "active_defense.remediation.apply.completed",
+                    json!({"target": target, "results": results}),
+                    Some(env.id),
+                )
+                .await?;
+
+            Ok(true)
+        }
     }
-
-    info!("Active defense scan requested: {:?}", req.kind);
-    evidence
-        .record(
-            "active_defense.scan.started",
-            json!({"kind": req.kind, "target": req.target}),
-            Some(env.id),
-        )
-        .await?;
-
-    // Phase 1: just run a couple of probes and record their results.
-    let probe_set: &[ProbeKind] = match req.kind {
-        ScanKind::Vuln => &[ProbeKind::ListeningPorts, ProbeKind::PackageInventory],
-        ScanKind::Intrusion => &[ProbeKind::ListeningPorts],
-    };
-
-    for probe in probe_set {
-        let probe_target = req.target.clone();
-        let res = run_probe(probe_target, probe.clone())?;
-        evidence
-            .record(
-                "active_defense.probe.completed",
-                json!({"result": res}),
-                Some(env.id),
-            )
-            .await?;
-    }
-
-    // Placeholder: remediation apply is future. Keep GhostMCP wired here.
-    // (Prevents dead code / reminds implementers to gate intrusive steps.)
-    let _ = ghostmcp;
-
-    evidence
-        .record(
-            "active_defense.scan.completed",
-            json!({"kind": req.kind, "target": req.target}),
-            Some(env.id),
-        )
-        .await?;
-
-    Ok(true)
 }
 
 #[cfg(test)]
@@ -117,19 +198,37 @@ mod tests {
     #[test]
     fn parse_target_defaults_local() {
         let env = Envelope::new("repl", "scan:vuln");
-        let req = parse_scan_request(&env).unwrap();
-        assert_eq!(req.target, Target::Local);
+        let cmd = parse_active_defense_command(&env).unwrap();
+        match cmd {
+            ActiveDefenseCommand::Scan(req) => assert_eq!(req.target, Target::Local),
+            _ => panic!("expected scan"),
+        }
     }
 
     #[test]
     fn parse_target_ssh() {
         let env = Envelope::new("repl", "scan:vuln --target ssh:root@10.0.0.5");
-        let req = parse_scan_request(&env).unwrap();
-        assert_eq!(
-            req.target,
-            Target::Ssh {
-                destination: "root@10.0.0.5".to_string()
+        let cmd = parse_active_defense_command(&env).unwrap();
+        match cmd {
+            ActiveDefenseCommand::Scan(req) => {
+                assert_eq!(
+                    req.target,
+                    Target::Ssh {
+                        destination: "root@10.0.0.5".to_string()
+                    }
+                );
             }
-        );
+            _ => panic!("expected scan"),
+        }
+    }
+
+    #[test]
+    fn parse_remediate_plan() {
+        let env = Envelope::new("repl", "remediate:plan --target local");
+        let cmd = parse_active_defense_command(&env).unwrap();
+        match cmd {
+            ActiveDefenseCommand::RemediatePlan { target } => assert_eq!(target, Target::Local),
+            _ => panic!("expected remediate plan"),
+        }
     }
 }

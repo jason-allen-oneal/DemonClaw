@@ -81,9 +81,20 @@ Send these via REPL or `POST /ingest` with `{ "content": "..." }`:
 - `scan:vuln [--target local|ssh:user@host]`
 - `scan:intrusion [--target local|ssh:user@host]`
 
+Remediation (Phase 2 skeleton):
+
+- `remediate:plan [--target local|ssh:user@host]`
+- `remediate:apply [--target local|ssh:user@host]` (GhostMCP approval required)
+
+### Remediation toggles
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEMONCLAW_REMEDIATE_USE_SUDO` | `true` | If true, remediation actions will run via `sudo -n` (non-interactive). |
+
 Notes:
 - Remote scans require engagement context when `DEMONCLAW_REQUIRE_ENGAGEMENT=1`.
-- Future phases will add `verify`, `remediate:plan`, and `remediate:apply` (GhostMCP-gated).
+- Future phases will add `verify` (safe PoCs), richer findings, and policy-driven auto-remediation allowlists.
 
 ## Example .env File
 
