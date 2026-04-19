@@ -94,6 +94,62 @@ pub fn detect_vuln_findings(target: Target) -> Result<Vec<Finding>> {
                 target: target.clone(),
             });
         }
+
+        // Other common high-risk services when bound to wildcard addresses.
+        // (Heuristic only, based on listening port output.)
+        let risky: &[(&str, u16, Severity, &str, &str)] = &[
+            (
+                "redis_exposed",
+                6379,
+                Severity::High,
+                "Redis appears exposed",
+                "Redis is frequently attacked when reachable. Ensure auth, bind, and firewall rules are correct.",
+            ),
+            (
+                "elasticsearch_exposed",
+                9200,
+                Severity::High,
+                "Elasticsearch appears exposed",
+                "Elasticsearch can leak data or be abused when reachable without auth.",
+            ),
+            (
+                "mongodb_exposed",
+                27017,
+                Severity::High,
+                "MongoDB appears exposed",
+                "MongoDB is frequently attacked when reachable. Ensure auth and firewall rules are correct.",
+            ),
+            (
+                "memcached_exposed",
+                11211,
+                Severity::High,
+                "Memcached appears exposed",
+                "Memcached is often abused for data exposure and amplification. Ensure it is not reachable.",
+            ),
+            (
+                "postgres_exposed",
+                5432,
+                Severity::Medium,
+                "PostgreSQL appears exposed",
+                "Postgres exposure may be intended, but should be protected by auth and firewall rules.",
+            ),
+        ];
+
+        for (kind, port, severity, title, detail) in risky.iter() {
+            let p = port.to_string();
+            let v4 = format!("0.0.0.0:{p}");
+            let v6 = format!("[::]:{p}");
+            let v6b = format!(":::{p}");
+            if s.contains(&v4) || s.contains(&v6) || s.contains(&v6b) {
+                findings.push(Finding {
+                    kind: (*kind).to_string(),
+                    severity: (*severity).clone(),
+                    title: (*title).to_string(),
+                    detail: (*detail).to_string(),
+                    target: target.clone(),
+                });
+            }
+        }
     }
 
     let upg = run_probe(target.clone(), ProbeKind::UpgradablePackages)?;

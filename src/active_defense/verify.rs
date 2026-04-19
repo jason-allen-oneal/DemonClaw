@@ -35,6 +35,20 @@ fn run_docker_ping(runner: &dyn CommandRunner) -> Result<(String, i32, String, S
     Ok(("wget".to_string(), code, out, err))
 }
 
+fn run_http_get(runner: &dyn CommandRunner, url: &str) -> Result<(String, i32, String, String)> {
+    let (code, out, err) = runner.run("curl", &["-sS", "--max-time", "2", url])?;
+    if code != -1 {
+        return Ok(("curl".to_string(), code, out, err));
+    }
+
+    let (code, out, err) = runner.run("wget", &["-qO-", "--timeout=2", url])?;
+    Ok(("wget".to_string(), code, out, err))
+}
+
+fn run_redis_ping(runner: &dyn CommandRunner) -> Result<(i32, String, String)> {
+    runner.run("redis-cli", &["-h", "127.0.0.1", "ping"])
+}
+
 fn parse_apt_get_simulated_upgraded_count(stdout: &str) -> Option<u32> {
     // Example summary line:
     // "0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded."
@@ -181,6 +195,74 @@ fn verify_finding(target: &Target, finding: &Finding) -> Result<Vec<Verification
                     method: "apt-get -s upgrade (unparsed)".to_string(),
                     result: VerificationResult::Inconclusive,
                     notes: truncate(&stdout, 8000),
+                });
+            }
+        }
+        "redis_exposed" => {
+            let (code, stdout, stderr) = run_redis_ping(runner.as_ref())?;
+            if code == -1 {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "redis-cli ping (missing)".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&stderr, 2000),
+                });
+            } else if stdout.trim() == "PONG" {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "redis-cli ping".to_string(),
+                    result: VerificationResult::Fail,
+                    notes: "redis responded PONG on loopback".to_string(),
+                });
+            } else {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "redis-cli ping".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&stdout, 2000),
+                });
+            }
+        }
+        "elasticsearch_exposed" => {
+            let url = "http://127.0.0.1:9200/";
+            let (tool, code, stdout, stderr) = run_http_get(runner.as_ref(), url)?;
+            if code == -1 {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "http get 127.0.0.1:9200 (missing curl/wget?)".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&stderr, 2000),
+                });
+            } else if code == 0 {
+                let body = stdout.to_ascii_lowercase();
+                if body.contains("cluster_name") || body.contains("you know, for search") {
+                    out.push(Verification {
+                        finding_kind: finding.kind.clone(),
+                        target: target.clone(),
+                        method: format!("http get 127.0.0.1:9200 via {tool}"),
+                        result: VerificationResult::Fail,
+                        notes: "elasticsearch-like response on loopback".to_string(),
+                    });
+                } else {
+                    out.push(Verification {
+                        finding_kind: finding.kind.clone(),
+                        target: target.clone(),
+                        method: format!("http get 127.0.0.1:9200 via {tool}"),
+                        result: VerificationResult::Inconclusive,
+                        notes: truncate(&stdout, 2000),
+                    });
+                }
+            } else {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: format!("http get 127.0.0.1:9200 via {tool}"),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&format!("exit={code}\n{stderr}"), 4000),
                 });
             }
         }
