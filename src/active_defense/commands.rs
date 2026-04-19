@@ -20,6 +20,7 @@ enum ActiveDefenseCommand {
     RemediatePlan { target: Target },
     RemediateApply { target: Target },
     Verify { target: Target },
+    DefendRun { target: Target },
 }
 
 fn parse_target(tokens: &[&str]) -> Target {
@@ -63,6 +64,7 @@ fn parse_active_defense_command(env: &Envelope) -> Option<ActiveDefenseCommand> 
         "remediate:plan" => Some(ActiveDefenseCommand::RemediatePlan { target }),
         "remediate:apply" => Some(ActiveDefenseCommand::RemediateApply { target }),
         "verify" => Some(ActiveDefenseCommand::Verify { target }),
+        "defend:run" => Some(ActiveDefenseCommand::DefendRun { target }),
         _ => None,
     }
 }
@@ -275,6 +277,105 @@ pub async fn handle_active_defense_command(
 
             Ok(true)
         }
+        ActiveDefenseCommand::DefendRun { target } => {
+            if matches!(target, Target::Ssh { .. }) {
+                security.check_engagement_context("active_defense_remote_defend_run")?;
+            }
+
+            evidence
+                .record(
+                    "active_defense.defend_run.started",
+                    json!({"target": target}),
+                    Some(env.id),
+                )
+                .await?;
+
+            // Vuln scan probes.
+            for probe in [
+                ProbeKind::ListeningPorts,
+                ProbeKind::PackageInventory,
+                ProbeKind::UpgradablePackages,
+            ] {
+                let res = run_probe(target.clone(), probe)?;
+                evidence
+                    .record(
+                        "active_defense.probe.completed",
+                        json!({"result": res}),
+                        Some(env.id),
+                    )
+                    .await?;
+            }
+
+            // Intrusion probes.
+            for probe in [
+                ProbeKind::SshAuthLog,
+                ProbeKind::Uid0Accounts,
+                ProbeKind::ProcessList,
+            ] {
+                let res = run_probe(target.clone(), probe)?;
+                evidence
+                    .record(
+                        "active_defense.probe.completed",
+                        json!({"result": res}),
+                        Some(env.id),
+                    )
+                    .await?;
+            }
+
+            let mut findings = detect_vuln_findings(target.clone())?;
+            findings.extend(detect_intrusion_findings(target.clone())?);
+            evidence
+                .record(
+                    "active_defense.defend_run.findings",
+                    evidence_payload_for_findings(&findings),
+                    Some(env.id),
+                )
+                .await?;
+
+            // Verification: GhostMCP gated.
+            let approved_verify = ghostmcp
+                .authorize_action("verify:safe_pocs")
+                .await
+                .unwrap_or(false);
+            if approved_verify {
+                let (_findings2, verifications) = run_verify(target.clone())?;
+                evidence
+                    .record(
+                        "active_defense.verifications",
+                        evidence_payload_for_verifications(&verifications),
+                        Some(env.id),
+                    )
+                    .await?;
+            } else {
+                evidence
+                    .record(
+                        "active_defense.verify.denied",
+                        json!({"target": target, "reason": "ghostmcp denied"}),
+                        Some(env.id),
+                    )
+                    .await?;
+            }
+
+            // Remediation planning.
+            let plan = plan_remediation(target.clone())?;
+            evidence
+                .record(
+                    "active_defense.remediation.plan.completed",
+                    json!({"plan": plan}),
+                    Some(env.id),
+                )
+                .await?;
+
+            evidence
+                .record(
+                    "active_defense.defend_run.completed",
+                    json!({"target": target}),
+                    Some(env.id),
+                )
+                .await?;
+
+            Ok(true)
+        }
     }
 }
 
@@ -326,6 +427,16 @@ mod tests {
         match cmd {
             ActiveDefenseCommand::Verify { target } => assert_eq!(target, Target::Local),
             _ => panic!("expected verify"),
+        }
+    }
+
+    #[test]
+    fn parse_defend_run() {
+        let env = Envelope::new("repl", "defend:run --target local");
+        let cmd = parse_active_defense_command(&env).unwrap();
+        match cmd {
+            ActiveDefenseCommand::DefendRun { target } => assert_eq!(target, Target::Local),
+            _ => panic!("expected defend:run"),
         }
     }
 }
