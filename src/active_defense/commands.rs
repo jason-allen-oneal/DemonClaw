@@ -7,8 +7,9 @@ use crate::{
 };
 
 use super::{
+    finders::{detect_intrusion_findings, detect_vuln_findings},
     probes::run_probe,
-    remediation::{apply_action, plan_remediation},
+    remediation::{apply_action, is_action_allowed, plan_remediation},
     types::{ProbeKind, ScanKind, ScanRequest, Target},
     verify::{evidence_payload_for_findings, evidence_payload_for_verifications, run_verify},
 };
@@ -94,8 +95,12 @@ pub async fn handle_active_defense_command(
 
             // Phase 1: just run a couple of probes and record their results.
             let probe_set: &[ProbeKind] = match req.kind {
-                ScanKind::Vuln => &[ProbeKind::ListeningPorts, ProbeKind::PackageInventory],
-                ScanKind::Intrusion => &[ProbeKind::ListeningPorts],
+                ScanKind::Vuln => &[
+                    ProbeKind::ListeningPorts,
+                    ProbeKind::PackageInventory,
+                    ProbeKind::UpgradablePackages,
+                ],
+                ScanKind::Intrusion => &[ProbeKind::ListeningPorts, ProbeKind::SshAuthLog],
             };
 
             for probe in probe_set {
@@ -109,6 +114,18 @@ pub async fn handle_active_defense_command(
                     )
                     .await?;
             }
+
+            let findings = match req.kind {
+                ScanKind::Vuln => detect_vuln_findings(req.target.clone())?,
+                ScanKind::Intrusion => detect_intrusion_findings(req.target.clone())?,
+            };
+            evidence
+                .record(
+                    "active_defense.scan.findings",
+                    json!({"kind": req.kind, "target": req.target, "payload": evidence_payload_for_findings(&findings)}),
+                    Some(env.id),
+                )
+                .await?;
 
             evidence
                 .record(
@@ -177,6 +194,16 @@ pub async fn handle_active_defense_command(
             let plan = plan_remediation(target.clone())?;
             let mut results = Vec::new();
             for action in plan.actions {
+                if !is_action_allowed(&action) {
+                    evidence
+                        .record(
+                            "active_defense.remediation.apply.denied",
+                            json!({"target": target, "reason": "action not allowed by policy", "action": action}),
+                            Some(env.id),
+                        )
+                        .await?;
+                    continue;
+                }
                 let res = apply_action(target.clone(), action)?;
                 results.push(res);
             }

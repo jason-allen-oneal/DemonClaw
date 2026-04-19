@@ -21,6 +21,7 @@ pub fn run_probe(target: Target, probe: ProbeKind) -> Result<ProbeResult> {
         ProbeKind::ListeningPorts => probe_listening_ports(target, runner.as_ref()),
         ProbeKind::PackageInventory => probe_package_inventory(target, runner.as_ref()),
         ProbeKind::UpgradablePackages => probe_upgradable_packages(target, runner.as_ref()),
+        ProbeKind::SshAuthLog => probe_ssh_auth_log(target, runner.as_ref()),
     }
 }
 
@@ -106,6 +107,72 @@ fn probe_upgradable_packages(target: Target, runner: &dyn CommandRunner) -> Resu
         skipped,
         skip_reason: if skipped {
             Some("missing apt".to_string())
+        } else {
+            None
+        },
+    })
+}
+
+fn parse_ssh_auth_summary(text: &str) -> (usize, usize, usize) {
+    // (failed, accepted, accepted_root)
+    let mut failed = 0;
+    let mut accepted = 0;
+    let mut accepted_root = 0;
+
+    for line in text.lines() {
+        let l = line.to_ascii_lowercase();
+        if l.contains("failed password") || l.contains("invalid user") {
+            failed += 1;
+        }
+        if l.contains("accepted password") || l.contains("accepted publickey") {
+            accepted += 1;
+        }
+        if l.contains("accepted password for root") || l.contains("accepted publickey for root") {
+            accepted_root += 1;
+        }
+    }
+
+    (failed, accepted, accepted_root)
+}
+
+fn probe_ssh_auth_log(target: Target, runner: &dyn CommandRunner) -> Result<ProbeResult> {
+    // Best-effort: prefer journald, fall back to /var/log/auth.log.
+    let (code, out, err) = runner.run(
+        "journalctl",
+        &["-u", "ssh", "-u", "sshd", "--since", "-24h", "--no-pager"],
+    )?;
+
+    let (code, out, err, used) = if code == -1 || out.trim().is_empty() {
+        let (c2, o2, e2) = runner.run("tail", &["-n", "200", "/var/log/auth.log"])?;
+        (c2, o2, e2, "auth.log")
+    } else {
+        (code, out, err, "journalctl")
+    };
+
+    let skipped = code == -1;
+    let (failed, accepted, accepted_root) = if skipped {
+        (0, 0, 0)
+    } else {
+        parse_ssh_auth_summary(&out)
+    };
+
+    Ok(ProbeResult {
+        target,
+        probe: ProbeKind::SshAuthLog,
+        summary: if skipped {
+            "skipped (no journalctl/tail)".to_string()
+        } else {
+            format!(
+                "ssh auth log captured via {} (failed={}, accepted={}, accepted_root={})",
+                used, failed, accepted, accepted_root
+            )
+        },
+        stdout: truncate(&out, 32_000),
+        stderr: truncate(&err, 8_000),
+        exit_code: code,
+        skipped,
+        skip_reason: if skipped {
+            Some("missing journalctl/auth.log".to_string())
         } else {
             None
         },

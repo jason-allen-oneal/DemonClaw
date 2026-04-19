@@ -16,6 +16,7 @@ pub enum ProbeKind {
     ListeningPorts,
     PackageInventory,
     UpgradablePackages,
+    SshAuthLog,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

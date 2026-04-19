@@ -63,7 +63,7 @@ DemonClaw uses environment variables for configuration. All settings can be prov
 | `GHOSTMCP_ALLOWED_ACTIONS` | - | Comma-separated allowlisted actions |
 | `DC_SECRET_*` | - | Secret store (e.g., `DC_SECRET_API_KEY`) |
 
-## Active Defense (Intrusion + Vulnernability Scanning)
+## Active Defense (Intrusion + Vulnerability Scanning)
 
 Phase 1 introduces a probe framework for local and SSH-based scans.
 
@@ -92,10 +92,12 @@ Remediation (Phase 2 skeleton):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DEMONCLAW_REMEDIATE_USE_SUDO` | `true` | If true, remediation actions will run via `sudo -n` (non-interactive). |
+| `DEMONCLAW_REMEDIATE_ALLOW_APT_UPGRADE` | `true` | If true, `remediate:apply` may run apt upgrade actions (still requires GhostMCP approval). Set to `false` to disable. |
 
 Notes:
 - Remote scans require engagement context when `DEMONCLAW_REQUIRE_ENGAGEMENT=1`.
 - `verify` runs read-only checks (for example `sshd -T`) to confirm hardening.
+- `scan:*` now also emits findings as evidence (`active_defense.scan.findings`).
 - Future phases will add richer findings, policy-driven auto-remediation allowlists, maintenance windows, and post-remediation verification.
 
 ## Example .env File

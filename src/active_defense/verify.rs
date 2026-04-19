@@ -2,10 +2,10 @@ use anyhow::Result;
 use serde_json::json;
 
 use super::{
-    findings::{Finding, Severity, Verification, VerificationResult},
-    probes::run_probe,
+    finders::{detect_intrusion_findings, detect_vuln_findings},
+    findings::{Finding, Verification, VerificationResult},
     runner::{CommandRunner, runner_for_target},
-    types::{ProbeKind, Target},
+    types::Target,
 };
 
 fn truncate(s: &str, max: usize) -> String {
@@ -15,74 +15,6 @@ fn truncate(s: &str, max: usize) -> String {
     let mut out = s[..max].to_string();
     out.push_str("\n…(truncated)…\n");
     out
-}
-
-fn count_upgradable_packages(stdout: &str) -> usize {
-    // `apt list --upgradable` output typically has a header like:
-    // "Listing... Done" followed by one package per line.
-    stdout
-        .lines()
-        .filter(|l| {
-            let t = l.trim();
-            !t.is_empty() && !t.starts_with("Listing") && !t.starts_with("WARNING")
-        })
-        .count()
-}
-
-fn detect_findings(target: Target) -> Result<Vec<Finding>> {
-    let mut findings = Vec::new();
-
-    // Surface inventory.
-    let ports = run_probe(target.clone(), ProbeKind::ListeningPorts)?;
-    if !ports.skipped {
-        let s = ports.stdout.to_ascii_lowercase();
-
-        // Very coarse detection based on common `ss`/`netstat` patterns.
-        if s.contains(":22")
-            && (s.contains("0.0.0.0:22") || s.contains("[::]:22") || s.contains(":::22"))
-        {
-            findings.push(Finding {
-                kind: "ssh_exposed".to_string(),
-                severity: Severity::Medium,
-                title: "SSH appears to be listening on a public-facing bind".to_string(),
-                detail: "Detected port 22 listening on a wildcard address. Verify sshd hardening (PermitRootLogin, PasswordAuthentication).".to_string(),
-                target: target.clone(),
-            });
-        }
-
-        if s.contains("0.0.0.0:2375") || s.contains("[::]:2375") || s.contains(":::2375") {
-            findings.push(Finding {
-                kind: "docker_tcp_2375_exposed".to_string(),
-                severity: Severity::Critical,
-                title: "Docker TCP 2375 appears exposed".to_string(),
-                detail: "Port 2375 is commonly an unauthenticated Docker API. This is frequently a full-host compromise vector.".to_string(),
-                target: target.clone(),
-            });
-        }
-    }
-
-    let upg = run_probe(target.clone(), ProbeKind::UpgradablePackages)?;
-    if !upg.skipped {
-        let n = count_upgradable_packages(&upg.stdout);
-        if n > 0 {
-            findings.push(Finding {
-                kind: "packages_outdated".to_string(),
-                severity: if n > 50 {
-                    Severity::High
-                } else {
-                    Severity::Medium
-                },
-                title: format!("{} packages appear upgradable", n),
-                detail: "Pending upgrades often include security fixes. Consider remediation via apt upgrade under change control.".to_string(),
-                target: target.clone(),
-            });
-        }
-    }
-
-    // Always record package inventory as evidence, even if it doesn't produce findings yet.
-    let _ = run_probe(target.clone(), ProbeKind::PackageInventory)?;
-
-    Ok(findings)
 }
 
 fn run_sshd_t(runner: &dyn CommandRunner) -> Result<(i32, String, String)> {
@@ -101,6 +33,20 @@ fn run_docker_ping(runner: &dyn CommandRunner) -> Result<(String, i32, String, S
 
     let (code, out, err) = runner.run("wget", &["-qO-", "--timeout=2", url])?;
     Ok(("wget".to_string(), code, out, err))
+}
+
+fn run_http_get(runner: &dyn CommandRunner, url: &str) -> Result<(String, i32, String, String)> {
+    let (code, out, err) = runner.run("curl", &["-sS", "--max-time", "2", url])?;
+    if code != -1 {
+        return Ok(("curl".to_string(), code, out, err));
+    }
+
+    let (code, out, err) = runner.run("wget", &["-qO-", "--timeout=2", url])?;
+    Ok(("wget".to_string(), code, out, err))
+}
+
+fn run_redis_ping(runner: &dyn CommandRunner) -> Result<(i32, String, String)> {
+    runner.run("redis-cli", &["-h", "127.0.0.1", "ping"])
 }
 
 fn parse_apt_get_simulated_upgraded_count(stdout: &str) -> Option<u32> {
@@ -252,6 +198,74 @@ fn verify_finding(target: &Target, finding: &Finding) -> Result<Vec<Verification
                 });
             }
         }
+        "redis_exposed" => {
+            let (code, stdout, stderr) = run_redis_ping(runner.as_ref())?;
+            if code == -1 {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "redis-cli ping (missing)".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&stderr, 2000),
+                });
+            } else if stdout.trim() == "PONG" {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "redis-cli ping".to_string(),
+                    result: VerificationResult::Fail,
+                    notes: "redis responded PONG on loopback".to_string(),
+                });
+            } else {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "redis-cli ping".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&stdout, 2000),
+                });
+            }
+        }
+        "elasticsearch_exposed" => {
+            let url = "http://127.0.0.1:9200/";
+            let (tool, code, stdout, stderr) = run_http_get(runner.as_ref(), url)?;
+            if code == -1 {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: "http get 127.0.0.1:9200 (missing curl/wget?)".to_string(),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&stderr, 2000),
+                });
+            } else if code == 0 {
+                let body = stdout.to_ascii_lowercase();
+                if body.contains("cluster_name") || body.contains("you know, for search") {
+                    out.push(Verification {
+                        finding_kind: finding.kind.clone(),
+                        target: target.clone(),
+                        method: format!("http get 127.0.0.1:9200 via {tool}"),
+                        result: VerificationResult::Fail,
+                        notes: "elasticsearch-like response on loopback".to_string(),
+                    });
+                } else {
+                    out.push(Verification {
+                        finding_kind: finding.kind.clone(),
+                        target: target.clone(),
+                        method: format!("http get 127.0.0.1:9200 via {tool}"),
+                        result: VerificationResult::Inconclusive,
+                        notes: truncate(&stdout, 2000),
+                    });
+                }
+            } else {
+                out.push(Verification {
+                    finding_kind: finding.kind.clone(),
+                    target: target.clone(),
+                    method: format!("http get 127.0.0.1:9200 via {tool}"),
+                    result: VerificationResult::Inconclusive,
+                    notes: truncate(&format!("exit={code}\n{stderr}"), 4000),
+                });
+            }
+        }
         _ => {}
     }
 
@@ -259,7 +273,8 @@ fn verify_finding(target: &Target, finding: &Finding) -> Result<Vec<Verification
 }
 
 pub fn run_verify(target: Target) -> Result<(Vec<Finding>, Vec<Verification>)> {
-    let findings = detect_findings(target.clone())?;
+    let mut findings = detect_vuln_findings(target.clone())?;
+    findings.extend(detect_intrusion_findings(target.clone())?);
 
     let mut verifications = Vec::new();
     for f in &findings {
@@ -281,14 +296,6 @@ pub fn evidence_payload_for_verifications(verifications: &[Verification]) -> ser
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn count_upgradable_skips_header() {
-        let s = "Listing... Done\n";
-        assert_eq!(count_upgradable_packages(s), 0);
-        let s2 = "Listing... Done\nfoo/now 1.0 amd64 [upgradable from: 0.9]\n";
-        assert_eq!(count_upgradable_packages(s2), 1);
-    }
 
     #[test]
     fn parse_apt_get_upgrade_summary() {
