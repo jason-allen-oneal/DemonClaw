@@ -81,7 +81,7 @@ Send these via REPL or `POST /ingest` with `{ "content": "..." }`:
 - `scan:vuln [--target local|ssh:user@host]`
 - `scan:intrusion [--target local|ssh:user@host]`
 - `verify [--target local|ssh:user@host]` (safe PoCs, GhostMCP approval required)
-- `defend:run [--target local|ssh:user@host]` (runs probes + findings + verify (GhostMCP-gated) + remediation plan)
+- `defend:run [--target local|ssh:user@host] [--apply]` (runs probes + findings + verify (GhostMCP-gated) + remediation plan; with `--apply` it will attempt GhostMCP-gated remediation apply + post-remediation verify)
 
 Remediation (Phase 2 skeleton):
 
