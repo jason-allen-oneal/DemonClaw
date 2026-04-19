@@ -92,7 +92,7 @@ Remediation (Phase 2 skeleton):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DEMONCLAW_REMEDIATE_USE_SUDO` | `true` | If true, remediation actions will run via `sudo -n` (non-interactive). |
-| `DEMONCLAW_REMEDIATE_ALLOW_APT_UPGRADE` | `false` | If true, `remediate:apply` may run apt upgrade actions (still requires GhostMCP approval). |
+| `DEMONCLAW_REMEDIATE_ALLOW_APT_UPGRADE` | `true` | If true, `remediate:apply` may run apt upgrade actions (still requires GhostMCP approval). Set to `false` to disable. |
 
 Notes:
 - Remote scans require engagement context when `DEMONCLAW_REQUIRE_ENGAGEMENT=1`.

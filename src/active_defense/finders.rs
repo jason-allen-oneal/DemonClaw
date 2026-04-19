@@ -28,15 +28,7 @@ fn journalctl_ssh(runner: &dyn CommandRunner) -> Result<(i32, String, String)> {
     // Units vary by distro. Try a couple.
     let (code, out, err) = runner.run(
         "journalctl",
-        &[
-            "-u",
-            "ssh",
-            "-u",
-            "sshd",
-            "--since",
-            "-24h",
-            "--no-pager",
-        ],
+        &["-u", "ssh", "-u", "sshd", "--since", "-24h", "--no-pager"],
     )?;
     Ok((code, out, err))
 }
@@ -218,7 +210,9 @@ pub fn detect_intrusion_findings(target: Target) -> Result<Vec<Finding>> {
             kind: "ssh_failed_logins_recent".to_string(),
             severity: Severity::Medium,
             title: "High volume of recent SSH auth failures".to_string(),
-            detail: format!("Detected {failed} failed SSH auth events via {used}. accepted={accepted}."),
+            detail: format!(
+                "Detected {failed} failed SSH auth events via {used}. accepted={accepted}."
+            ),
             target: target.clone(),
         });
     }

@@ -1,11 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    finders::detect_vuln_findings,
-    runner::runner_for_target,
-    types::Target,
-};
+use super::{finders::detect_vuln_findings, runner::runner_for_target, types::Target};
 
 fn truncate(s: &str, max: usize) -> String {
     if s.len() <= max {
@@ -46,13 +42,20 @@ pub struct ApplyResult {
 fn bool_from_env(name: &str, default: bool) -> bool {
     std::env::var(name)
         .ok()
-        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(default)
 }
 
 pub fn is_action_allowed(action: &RemediationAction) -> bool {
     match action {
-        RemediationAction::AptUpgrade { .. } => bool_from_env("DEMONCLAW_REMEDIATE_ALLOW_APT_UPGRADE", false),
+        RemediationAction::AptUpgrade { .. } => {
+            bool_from_env("DEMONCLAW_REMEDIATE_ALLOW_APT_UPGRADE", true)
+        }
     }
 }
 
@@ -103,7 +106,7 @@ pub fn plan_remediation(target: Target) -> Result<RemediationPlan> {
     let upgraded = parse_apt_get_simulated_upgraded_count(&out).unwrap_or(0);
 
     if !wants_apt_upgrade {
-        notes.push_str("\n\nNo remediation actions planned: no packages_outdated finding." );
+        notes.push_str("\n\nNo remediation actions planned: no packages_outdated finding.");
         return Ok(RemediationPlan {
             target,
             actions: vec![],
@@ -112,7 +115,7 @@ pub fn plan_remediation(target: Target) -> Result<RemediationPlan> {
     }
 
     if upgraded == 0 {
-        notes.push_str("\n\nNo remediation actions planned: apt reports 0 upgraded." );
+        notes.push_str("\n\nNo remediation actions planned: apt reports 0 upgraded.");
         return Ok(RemediationPlan {
             target,
             actions: vec![],

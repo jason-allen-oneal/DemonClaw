@@ -139,15 +139,7 @@ fn probe_ssh_auth_log(target: Target, runner: &dyn CommandRunner) -> Result<Prob
     // Best-effort: prefer journald, fall back to /var/log/auth.log.
     let (code, out, err) = runner.run(
         "journalctl",
-        &[
-            "-u",
-            "ssh",
-            "-u",
-            "sshd",
-            "--since",
-            "-24h",
-            "--no-pager",
-        ],
+        &["-u", "ssh", "-u", "sshd", "--since", "-24h", "--no-pager"],
     )?;
 
     let (code, out, err, used) = if code == -1 || out.trim().is_empty() {
