@@ -9,6 +9,7 @@ use crate::{
 use super::{
     probes::run_probe,
     remediation::{apply_action, plan_remediation},
+    verify::{evidence_payload_for_findings, evidence_payload_for_verifications, run_verify},
     types::{ProbeKind, ScanKind, ScanRequest, Target},
 };
 
@@ -17,6 +18,7 @@ enum ActiveDefenseCommand {
     Scan(ScanRequest),
     RemediatePlan { target: Target },
     RemediateApply { target: Target },
+    Verify { target: Target },
 }
 
 fn parse_target(tokens: &[&str]) -> Target {
@@ -59,6 +61,7 @@ fn parse_active_defense_command(env: &Envelope) -> Option<ActiveDefenseCommand> 
         })),
         "remediate:plan" => Some(ActiveDefenseCommand::RemediatePlan { target }),
         "remediate:apply" => Some(ActiveDefenseCommand::RemediateApply { target }),
+        "verify" => Some(ActiveDefenseCommand::Verify { target }),
         _ => None,
     }
 }
@@ -188,6 +191,63 @@ pub async fn handle_active_defense_command(
 
             Ok(true)
         }
+        ActiveDefenseCommand::Verify { target } => {
+            if matches!(target, Target::Ssh { .. }) {
+                security.check_engagement_context("active_defense_remote_verify")?;
+            }
+
+            // Verification uses safe PoCs (read-only config interrogation) but still requires
+            // explicit approval by default.
+            let approved = ghostmcp
+                .authorize_action("verify:safe_pocs")
+                .await
+                .unwrap_or(false);
+            if !approved {
+                evidence
+                    .record(
+                        "active_defense.verify.denied",
+                        json!({"target": target, "reason": "ghostmcp denied"}),
+                        Some(env.id),
+                    )
+                    .await?;
+                return Ok(true);
+            }
+
+            evidence
+                .record(
+                    "active_defense.verify.started",
+                    json!({"target": target}),
+                    Some(env.id),
+                )
+                .await?;
+
+            let (findings, verifications) = run_verify(target.clone())?;
+
+            evidence
+                .record(
+                    "active_defense.findings",
+                    evidence_payload_for_findings(&findings),
+                    Some(env.id),
+                )
+                .await?;
+            evidence
+                .record(
+                    "active_defense.verifications",
+                    evidence_payload_for_verifications(&verifications),
+                    Some(env.id),
+                )
+                .await?;
+
+            evidence
+                .record(
+                    "active_defense.verify.completed",
+                    json!({"target": target}),
+                    Some(env.id),
+                )
+                .await?;
+
+            Ok(true)
+        }
     }
 }
 
@@ -229,6 +289,16 @@ mod tests {
         match cmd {
             ActiveDefenseCommand::RemediatePlan { target } => assert_eq!(target, Target::Local),
             _ => panic!("expected remediate plan"),
+        }
+    }
+
+    #[test]
+    fn parse_verify() {
+        let env = Envelope::new("repl", "verify --target local");
+        let cmd = parse_active_defense_command(&env).unwrap();
+        match cmd {
+            ActiveDefenseCommand::Verify { target } => assert_eq!(target, Target::Local),
+            _ => panic!("expected verify"),
         }
     }
 }

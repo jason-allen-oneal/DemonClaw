@@ -15,6 +15,7 @@ pub enum Target {
 pub enum ProbeKind {
     ListeningPorts,
     PackageInventory,
+    UpgradablePackages,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

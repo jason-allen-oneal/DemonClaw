@@ -80,6 +80,7 @@ Send these via REPL or `POST /ingest` with `{ "content": "..." }`:
 
 - `scan:vuln [--target local|ssh:user@host]`
 - `scan:intrusion [--target local|ssh:user@host]`
+- `verify [--target local|ssh:user@host]` (safe PoCs, GhostMCP approval required)
 
 Remediation (Phase 2 skeleton):
 
@@ -94,7 +95,8 @@ Remediation (Phase 2 skeleton):
 
 Notes:
 - Remote scans require engagement context when `DEMONCLAW_REQUIRE_ENGAGEMENT=1`.
-- Future phases will add `verify` (safe PoCs), richer findings, and policy-driven auto-remediation allowlists.
+- `verify` runs read-only checks (for example `sshd -T`) to confirm hardening.
+- Future phases will add richer findings, policy-driven auto-remediation allowlists, maintenance windows, and post-remediation verification.
 
 ## Example .env File
 

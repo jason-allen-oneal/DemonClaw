@@ -20,6 +20,7 @@ pub fn run_probe(target: Target, probe: ProbeKind) -> Result<ProbeResult> {
     match probe {
         ProbeKind::ListeningPorts => probe_listening_ports(target, runner.as_ref()),
         ProbeKind::PackageInventory => probe_package_inventory(target, runner.as_ref()),
+        ProbeKind::UpgradablePackages => probe_upgradable_packages(target, runner.as_ref()),
     }
 }
 
@@ -80,6 +81,31 @@ fn probe_package_inventory(target: Target, runner: &dyn CommandRunner) -> Result
         skipped,
         skip_reason: if skipped {
             Some("missing dpkg-query".to_string())
+        } else {
+            None
+        },
+    })
+}
+
+fn probe_upgradable_packages(target: Target, runner: &dyn CommandRunner) -> Result<ProbeResult> {
+    // `apt list --upgradable` is a safe, read-only way to see pending upgrades.
+    let (code, out, err) = runner.run("apt", &["list", "--upgradable"])?;
+    let skipped = code == -1;
+
+    Ok(ProbeResult {
+        target,
+        probe: ProbeKind::UpgradablePackages,
+        summary: if skipped {
+            "skipped (no apt)".to_string()
+        } else {
+            "upgradable package list captured".to_string()
+        },
+        stdout: truncate(&out, 64_000),
+        stderr: truncate(&err, 8_000),
+        exit_code: code,
+        skipped,
+        skip_reason: if skipped {
+            Some("missing apt".to_string())
         } else {
             None
         },

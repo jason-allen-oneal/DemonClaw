@@ -116,9 +116,14 @@ Ingest commands as plain text envelopes:
 
 ### Phase 2
 
-- safe PoC verification runners
+- safe PoC verification runners (read-only checks that increase confidence)
 - remediation plan generation (rule-based)
-- GhostMCP approval UX for apply
+- GhostMCP approval boundary for apply
+
+Status (implemented skeleton):
+- `verify --target ...` (GhostMCP-gated) runs safe checks like `sshd -T` to validate hardening.
+- `remediate:plan` uses `apt-get -s upgrade` simulation.
+- `remediate:apply` runs non-interactive `apt-get -y upgrade` (GhostMCP-gated).
 
 ### Phase 3
 
