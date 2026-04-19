@@ -1,10 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    runner::runner_for_target,
-    types::Target,
-};
+use super::{runner::runner_for_target, types::Target};
 
 fn truncate(s: &str, max: usize) -> String {
     if s.len() <= max {
@@ -50,7 +47,12 @@ pub fn plan_remediation(target: Target) -> Result<RemediationPlan> {
 
     let use_sudo = std::env::var("DEMONCLAW_REMEDIATE_USE_SUDO")
         .ok()
-        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(true);
 
     let mut notes = String::new();
@@ -102,12 +104,7 @@ pub fn apply_action(target: Target, action: RemediationAction) -> Result<ApplyRe
             } else {
                 (
                     "env",
-                    vec![
-                        "DEBIAN_FRONTEND=noninteractive",
-                        "apt-get",
-                        "-y",
-                        "upgrade",
-                    ],
+                    vec!["DEBIAN_FRONTEND=noninteractive", "apt-get", "-y", "upgrade"],
                 )
             };
 
@@ -124,7 +121,11 @@ pub fn apply_action(target: Target, action: RemediationAction) -> Result<ApplyRe
 }
 
 /// Helper for running a command and capturing output through the target runner.
-pub fn run_on_target(target: Target, program: &str, args: &[&str]) -> Result<(i32, String, String)> {
+pub fn run_on_target(
+    target: Target,
+    program: &str,
+    args: &[&str],
+) -> Result<(i32, String, String)> {
     let runner = runner_for_target(&target);
     runner.run(program, args)
 }

@@ -29,7 +29,9 @@ fn detect_findings(target: Target) -> Result<Vec<Finding>> {
         let s = ports.stdout.to_ascii_lowercase();
 
         // Very coarse detection based on common `ss`/`netstat` patterns.
-        if s.contains(":22") && (s.contains("0.0.0.0:22") || s.contains("[::]:22") || s.contains(":::22")) {
+        if s.contains(":22")
+            && (s.contains("0.0.0.0:22") || s.contains("[::]:22") || s.contains(":::22"))
+        {
             findings.push(Finding {
                 kind: "ssh_exposed".to_string(),
                 severity: Severity::Medium,
@@ -99,7 +101,9 @@ fn verify_finding(target: &Target, finding: &Finding) -> Result<Vec<Verification
 
             let cfg = stdout.to_ascii_lowercase();
             let permit_root = cfg.lines().any(|l| l.trim() == "permitrootlogin yes");
-            let password_auth = cfg.lines().any(|l| l.trim() == "passwordauthentication yes");
+            let password_auth = cfg
+                .lines()
+                .any(|l| l.trim() == "passwordauthentication yes");
 
             if permit_root {
                 out.push(Verification {

@@ -9,8 +9,8 @@ use crate::{
 use super::{
     probes::run_probe,
     remediation::{apply_action, plan_remediation},
-    verify::{evidence_payload_for_findings, evidence_payload_for_verifications, run_verify},
     types::{ProbeKind, ScanKind, ScanRequest, Target},
+    verify::{evidence_payload_for_findings, evidence_payload_for_verifications, run_verify},
 };
 
 #[derive(Debug, Clone)]
