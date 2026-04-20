@@ -1,9 +1,9 @@
 # Release Checklist
 
 ## Versioning
-- [ ] confirm target version/tag
-- [ ] update `Cargo.toml` version if needed
-- [ ] review `CHANGELOG.md`
+- [x] confirm target version/tag
+- [x] update `Cargo.toml` version if needed
+- [x] review `CHANGELOG.md`
 
 ## Code health
 - [x] `cargo test`
@@ -11,20 +11,20 @@
 - [x] `cargo clippy --all-targets --all-features -- -D warnings`
 
 ## Runtime smoke
-- [ ] start Postgres/pgvector via `docker compose up -d`
-- [ ] launch DemonClaw with `.env`
-- [ ] verify `/healthz`
-- [ ] verify `POST /ingest`
-- [ ] run `payload:test_payload`
-- [ ] confirm evidence events recorded
-- [ ] confirm scheduler interval job fires
-- [ ] confirm cron job fires
+- [x] start Postgres/pgvector via `docker compose up -d`
+- [x] launch DemonClaw with `.env`
+- [x] verify `/healthz`
+- [x] verify `POST /ingest`
+- [x] run `payload:test_payload`
+- [x] confirm evidence events recorded
+- [x] confirm scheduler interval job fires
+- [x] confirm cron job fires
 
 ## Release prep
 - [x] README updated
 - [x] SECURITY policy present
 - [x] CI workflows present
-- [ ] push final commits
-- [ ] create annotated git tag
-- [ ] publish GitHub release notes
-- [ ] set final repo description/homepage/topics if needed
+- [x] push final commits
+- [x] create annotated git tag
+- [x] publish GitHub release notes
+- [x] set final repo description/homepage/topics if needed

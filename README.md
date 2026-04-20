@@ -10,7 +10,7 @@ DemonClaw is a security-first autonomous agent framework built for purple-team o
 
 ## Release status
 
-**Current state:** release candidate / v0.1-ready
+**Current state:** release / v1.0.0
 
 Core spec coverage is in place:
 - SignalGate semantic routing

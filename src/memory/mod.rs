@@ -1,7 +1,7 @@
 use crate::embeddings::EmbeddingManager;
 use anyhow::{Result, anyhow};
 use serde_json::Value;
-use sqlx::{Pool, Postgres, Row, postgres::PgPoolOptions};
+use sqlx::{Pool, Postgres, Row, migrate::Migrator, postgres::PgPoolOptions};
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -51,7 +51,8 @@ impl MemoryManager {
 
     pub async fn init_schema(&self) -> Result<()> {
         info!("Running pgvector migrations (memory optimizer prep)...");
-        sqlx::migrate!("./migrations").run(&self.pool).await?;
+        let migrator = Migrator::new(std::path::Path::new("./migrations")).await?;
+        migrator.run(&self.pool).await?;
 
         Ok(())
     }
@@ -234,13 +235,8 @@ impl MemoryManager {
                 warn!("Memory Optimizer: ANALYZE failed: {}", e);
             }
 
-            // Reindex if fragmentation is high (simplified - production would check pg_stat_user_indexes)
-            if let Err(e) = sqlx::query("REINDEX INDEX CONCURRENTLY IF EXISTS idx_memory_embedding")
-                .execute(&self.pool)
-                .await
-            {
-                warn!("Memory Optimizer: REINDEX failed: {}", e);
-            }
+            // Reindexing is intentionally omitted here until we have a proper
+            // fragmentation threshold and maintenance window policy.
 
             // Vacuum analyze for dead tuple cleanup
             if let Err(e) = sqlx::query("VACUUM ANALYZE memory_chunks")
