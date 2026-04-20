@@ -4,6 +4,24 @@
 
 # DemonClaw
 
+<p align="center">
+  <a href="https://github.com/jason-allen-oneal/DemonClaw/actions/workflows/ci.yml">
+    <img src="https://github.com/jason-allen-oneal/DemonClaw/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  </a>
+  <a href="https://github.com/jason-allen-oneal/DemonClaw/actions/workflows/security.yml">
+    <img src="https://github.com/jason-allen-oneal/DemonClaw/actions/workflows/security.yml/badge.svg" alt="Security" />
+  </a>
+  <a href="https://github.com/jason-allen-oneal/DemonClaw/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT" />
+  </a>
+  <a href="https://www.rust-lang.org">
+    <img src="https://img.shields.io/badge/rust-stable-orange.svg" alt="Rust" />
+  </a>
+  <a href="https://github.com/jason-allen-oneal/DemonClaw/releases">
+    <img src="https://img.shields.io/badge/release-v1.0.0-blue.svg" alt="Release v1.0.0" />
+  </a>
+</p>
+
 Purple-team agent runtime in Rust.
 
 DemonClaw is a security-first autonomous agent framework built for purple-team operations, controlled execution, and tamper-evident evidence collection. It combines policy-gated orchestration, sandboxed WASM payloads, semantic routing, and persistent memory into a single Rust-native runtime.
