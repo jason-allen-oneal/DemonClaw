@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0 - 2026-04-20
+
+First stable release.
+
+### Fixed
+- memory optimizer maintenance no longer emits invalid REINDEX SQL during runtime
+- runtime schema initialization now uses the non-macro SQLx migrator API
+- release metadata updated for the 0.1.0 launch
+
+### Validation
+- `cargo test --all` passing
+- runtime smoke verified with `/healthz` and `POST /ingest`
+
 ## 0.1.0-rc1 - 2026-04-13
 
 Release candidate prepared for first tagged release.
