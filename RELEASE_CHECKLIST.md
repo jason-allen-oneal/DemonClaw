@@ -24,7 +24,7 @@
 - [x] README updated
 - [x] SECURITY policy present
 - [x] CI workflows present
-- [ ] push final commits
+- [x] push final commits
 - [x] create annotated git tag
-- [ ] publish GitHub release notes
-- [ ] set final repo description/homepage/topics if needed
+- [x] publish GitHub release notes
+- [x] set final repo description/homepage/topics if needed
