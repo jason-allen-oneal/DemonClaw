@@ -1,13 +1,16 @@
-#![no_std]
+#![cfg_attr(target_arch = "wasm32", no_std)]
 
+#[cfg(target_arch = "wasm32")]
 use core::panic::PanicInfo;
 
+#[cfg(target_arch = "wasm32")]
 #[link(wasm_import_module = "env")]
 unsafe extern "C" {
     fn log(ptr: *const u8, len: usize);
     fn http_request(ptr: *const u8, len: usize) -> i32;
 }
 
+#[cfg(target_arch = "wasm32")]
 #[no_mangle]
 pub extern "C" fn run() {
     let msg = b"[MODULE: web_enum] STARTING: enumerating high-value routes";
@@ -30,6 +33,13 @@ pub extern "C" fn run() {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[no_mangle]
+pub extern "C" fn run() {
+    let _ = "[MODULE: web_enum] native build shim";
+}
+
+#[cfg(target_arch = "wasm32")]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {}

@@ -141,6 +141,16 @@ impl CommandRunner for SshRunner {
     }
 }
 
+pub fn runner_for_target(target: &Target) -> Box<dyn CommandRunner + Send + Sync> {
+    match target {
+        Target::Local => Box::new(LocalRunner),
+        Target::Ssh { destination } => Box::new(SshRunner {
+            destination: destination.clone(),
+            policy: SshPolicy::from_env(),
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -150,15 +160,5 @@ mod tests {
         assert_eq!(shell_escape("abc"), "'abc'");
         assert_eq!(shell_escape("a'b"), "'a'\"'\"'b'");
         assert_eq!(shell_escape(""), "''");
-    }
-}
-
-pub fn runner_for_target(target: &Target) -> Box<dyn CommandRunner + Send + Sync> {
-    match target {
-        Target::Local => Box::new(LocalRunner),
-        Target::Ssh { destination } => Box::new(SshRunner {
-            destination: destination.clone(),
-            policy: SshPolicy::from_env(),
-        }),
     }
 }
