@@ -46,7 +46,7 @@ fn parse_target(tokens: &[&str]) -> Target {
 }
 
 fn has_flag(tokens: &[&str], flag: &str) -> bool {
-    tokens.iter().any(|t| *t == flag)
+    tokens.contains(&flag)
 }
 
 fn parse_active_defense_command(env: &Envelope) -> Option<ActiveDefenseCommand> {
