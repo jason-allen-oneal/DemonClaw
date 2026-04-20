@@ -214,10 +214,7 @@ fn probe_uid0_accounts(target: Target, runner: &dyn CommandRunner) -> Result<Pro
 
 fn probe_process_list(target: Target, runner: &dyn CommandRunner) -> Result<ProbeResult> {
     // Read-only snapshot.
-    let (code, out, err) = runner.run(
-        "ps",
-        &["-eo", "pid,user,comm,args", "--no-headers"],
-    )?;
+    let (code, out, err) = runner.run("ps", &["-eo", "pid,user,comm,args", "--no-headers"])?;
     let skipped = code == -1;
     Ok(ProbeResult {
         target,
