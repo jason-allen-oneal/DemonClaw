@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Security Policy — DemonClaw{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-hdr">
+    Security Policy
+    <span class="badge bg-y">READ-ONLY</span>
+  </div>
+  <div class="card-body">
+    <div class="pol-grid">
+      <div>
+        <div class="pol-item"><span class="pol-key">Engagement ID</span><span class="pol-val">{% if policy.engagement_id %}<code>{{ policy.engagement_id }}</code>{% else %}<span style="color:var(--txt-dim)">Not set</span>{% endif %}</span></div>
+        <div class="pol-item"><span class="pol-key">Require Engagement</span><span class="pol-val">{% if policy.require_engagement_context %}Yes{% else %}No{% endif %}</span></div>
+        <div class="pol-item"><span class="pol-key">Private Only</span><span class="pol-val">{% if policy.allow_private_only %}Yes{% else %}No{% endif %}</span></div>
+        <div class="pol-item"><span class="pol-key">Max Tool Level</span><span class="pol-val"><code>{{ policy.max_tool_level }}</code></span></div>
+      </div>
+      <div>
+        <div class="pol-item"><span class="pol-key">Max Ports/Scan</span><span class="pol-val">{{ policy.max_ports_per_scan }}</span></div>
+        <div class="pol-item"><span class="pol-key">Blocked Ports</span><span class="pol-val">{% for p in policy.blocked_ports %}<span class="badge bg-r" style="margin-right:3px">{{ p }}</span>{% endfor %}</span></div>
+        <div class="pol-item"><span class="pol-key">Allowed CIDRs</span><span class="pol-val">{% if policy.allowed_cidrs | length > 0 %}{% for c in policy.allowed_cidrs %}<code>{{ c }}</code><br>{% endfor %}{% else %}<span style="color:var(--txt-dim)">None</span>{% endif %}</span></div>
+        <div class="pol-item"><span class="pol-key">Allowed Domains</span><span class="pol-val">{% if policy.allowed_domains | length > 0 %}{% for d in policy.allowed_domains %}<code>{{ d }}</code><br>{% endfor %}{% else %}<span style="color:var(--txt-dim)">None</span>{% endif %}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

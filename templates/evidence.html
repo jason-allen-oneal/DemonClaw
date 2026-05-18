@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Evidence Chain — DemonClaw{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-hdr">
+    Chain Verification
+    <span class="badge {% if verify.is_valid %}bg-g{% else %}bg-r{% endif %}">
+      {% if verify.is_valid %}VALID{% else %}BROKEN{% endif %}
+    </span>
+  </div>
+  <div class="card-body">
+    <div class="verify {% if verify.is_valid %}ok{% else %}bad{% endif %}">
+      <div class="verify-icon">{% if verify.is_valid %}✓{% else %}✗{% endif %}</div>
+      <div>
+        <strong style="color:{% if verify.is_valid %}var(--grn){% else %}var(--red){% endif %}">
+          {% if verify.is_valid %}CHAIN INTEGRITY VERIFIED{% else %}CHAIN INTEGRITY FAILURE{% endif %}
+        </strong><br>
+        <span style="font-size:.78rem;color:var(--txt-dim)">
+          {{ verify.valid_events }}/{{ verify.total_events }} events verified
+          {% if verify.broken_links | length > 0 %} · {{ verify.broken_links | length }} broken links{% endif %}
+          {% if verify.hash_mismatches | length > 0 %} · {{ verify.hash_mismatches | length }} hash mismatches{% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hdr">
+    Evidence Chain
+    <span class="badge bg-c">{{ events | length }} events</span>
+  </div>
+  <div class="card-body" style="padding:0;overflow-x:auto">
+    {% if events | length == 0 %}
+      <div class="empty">No evidence events</div>
+    {% else %}
+    <table class="tbl">
+      <thead><tr><th>Timestamp</th><th>Kind</th><th>Envelope</th><th>Detail</th><th>Hash</th></tr></thead>
+      <tbody>
+        {% for ev in events %}
+        <tr>
+          <td class="time">{{ ev.timestamp | date(format="%Y-%m-%d %H:%M:%S") }}</td>
+          <td><span class="badge {% if ev.kind is containing("completed") %}bg-g{% elif ev.kind is containing("failed") or ev.kind is containing("denied") %}bg-r{% elif ev.kind is containing("running") %}bg-y{% else %}bg-p{% endif %}">{{ ev.kind }}</span></td>
+          <td><code style="font-size:.68rem;color:var(--txt-dim)">{% if ev.envelope_id %}{{ ev.envelope_id }}{% else %}—{% endif %}</code></td>
+          <td><div class="db" style="max-height:80px">{{ ev.detail }}</div></td>
+          <td class="hash" title="{{ ev.hash }}">{{ ev.hash | truncate(length=14) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

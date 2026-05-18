@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — DemonClaw{% endblock %}
+{% block content %}
+<div class="stats">
+  <div class="stat">
+    <div class="stat-lbl">Evidence Events</div>
+    <div class="stat-val a">{{ evidence_count }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">Chain Integrity</div>
+    <div class="stat-val {% if chain_valid %}g{% else %}r{% endif %}">
+      {% if chain_valid %}✓ VALID{% else %}✗ BROKEN{% endif %}
+    </div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">Tool Level</div>
+    <div class="stat-val c">{{ tool_level }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">Engagement</div>
+    <div class="stat-val {% if engagement_id %}c{% endif %}">
+      {{ engagement_id | default(value="None") }}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hdr">
+    Recent Activity
+    <span class="badge bg-p">LIVE</span>
+  </div>
+  <div class="card-body">
+    {% if events | length == 0 %}
+      <div class="empty">No events recorded yet. Send an envelope to get started.</div>
+    {% else %}
+    <table class="tbl">
+      <thead><tr><th>Time</th><th>Kind</th><th>Detail</th></tr></thead>
+      <tbody>
+        {% for ev in events %}
+        <tr>
+          <td class="time">{{ ev.timestamp | date(format="%b %d %H:%M:%S") }}</td>
+          <td><span class="badge {% if ev.kind is containing("completed") %}bg-g{% elif ev.kind is containing("failed") or ev.kind is containing("denied") %}bg-r{% elif ev.kind is containing("running") %}bg-y{% else %}bg-c{% endif %}">{{ ev.kind }}</span></td>
+          <td><div class="db" style="max-height:60px">{{ ev.detail }}</div></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
