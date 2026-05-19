@@ -1,7 +1,8 @@
 [advisories]
 ignore = [
   "RUSTSEC-2023-0071",
-  "RUSTSEC-2026-0097"
+  "RUSTSEC-2026-0097",
+  "RUSTSEC-2026-0114",
 ]
 
 [output]
