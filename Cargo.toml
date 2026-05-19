@@ -26,3 +26,6 @@ regex = { version = "1.11.1", default-features = false, features = ["std", "perf
 sha2 = "0.10.8"
 url = "2.5.4"
 async-trait = "0.1.88"
+tera = "1.20.0"
+async-stream = "0.3.6"
+futures = "0.3.31"

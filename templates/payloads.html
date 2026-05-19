@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Payloads — DemonClaw{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-hdr">
+    Available Payloads
+    <span class="badge bg-p">{{ payloads | length }} loaded</span>
+  </div>
+  <div class="card-body" style="padding:0;overflow-x:auto">
+    {% if payloads | length == 0 %}
+      <div class="empty">No payloads found. Build WASM payloads with: <code>cargo build --target wasm32-wasip1 --release</code></div>
+    {% else %}
+    <table class="tbl">
+      <thead><tr><th>Name</th><th>Status</th><th>Size</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for p in payloads %}
+        <tr>
+          <td><code style="font-size:.82rem">{{ p.name }}</code></td>
+          <td>
+            {% if p.wasm_exists %}
+              <span class="badge bg-g">BUILT</span>
+            {% else %}
+              <span class="badge bg-r">MISSING</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--txt-dim);font-size:.72rem">
+            {% if p.wasm_size > 0 %}
+              {{ p.wasm_size }} bytes
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>
+            {% if p.wasm_exists %}
+              <button onclick="runPayload('{{ p.name }}')" style="background:var(--acc-dim);color:var(--acc);border:1px solid var(--acc);padding:2px 10px;border-radius:4px;font-family:inherit;font-size:.7rem;font-weight:600;cursor:pointer">RUN</button>
+            {% else %}
+              <span style="color:var(--txt-dim);font-size:.7rem">N/A</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hdr">
+    Payload Execution Log
+  </div>
+  <div class="card-body">
+    <div id="payload-log" class="db" style="min-height:80px;max-height:200px;font-size:.72rem">
+      <span style="color:var(--txt-dim)">No payload executions yet. Click RUN to execute a payload.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+function runPayload(name) {
+  var log = document.getElementById('payload-log');
+  log.innerHTML += '\n[' + new Date().toLocaleTimeString() + '] Executing payload:' + name + '...\n';
+  log.scrollTop = log.scrollHeight;
+  fetch('/ingest', {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({content: 'payload:' + name})
+  }).then(function(r) { return r.json(); })
+    .then(function(data) {
+      log.innerHTML += '[' + new Date().toLocaleTimeString() + '] ✓ Envelope ' + data.id + ' ingested\n';
+      log.scrollTop = log.scrollHeight;
+    })
+    .catch(function(err) {
+      log.innerHTML += '[' + new Date().toLocaleTimeString() + '] ✗ ' + err + '\n';
+      log.scrollTop = log.scrollHeight;
+    });
+}
+</script>
+{% endblock %}

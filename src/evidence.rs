@@ -253,6 +253,38 @@ impl EvidenceLocker {
         Ok(verification)
     }
 
+    /// Query all events, most recent first.
+    pub async fn query_all(&self, limit: i64) -> Result<Vec<EvidenceEvent>> {
+        let rows = sqlx::query(
+            "SELECT id, prev_hash, timestamp, kind, detail, envelope_id, hash
+             FROM evidence_chain ORDER BY timestamp DESC LIMIT $1",
+        )
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|row| EvidenceEvent {
+                id: row.get("id"),
+                prev_hash: row.get("prev_hash"),
+                timestamp: row.get("timestamp"),
+                kind: row.get("kind"),
+                detail: row.get("detail"),
+                envelope_id: row.get("envelope_id"),
+                hash: row.get("hash"),
+            })
+            .collect())
+    }
+
+    /// Count total events in the chain.
+    pub async fn count(&self) -> Result<i64> {
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM evidence_chain")
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(count)
+    }
+
     /// Query events by kind
     pub async fn query_by_kind(&self, kind: &str, limit: i64) -> Result<Vec<EvidenceEvent>> {
         let rows = sqlx::query(

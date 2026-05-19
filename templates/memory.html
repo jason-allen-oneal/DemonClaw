@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Memory — DemonClaw{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-hdr">
+    Memory Search
+    <span class="badge bg-c">{{ result_count }} chunks</span>
+  </div>
+  <div class="card-body">
+    <form onsubmit="return searchMemory()" style="display:flex;gap:8px;margin-bottom:16px">
+      <input id="mem-query" type="text" value="{{ query }}" placeholder="Search memory chunks..." style="flex:1;background:var(--bg);border:1px solid var(--brd);color:var(--txt);padding:8px 12px;border-radius:4px;font-family:inherit;font-size:.82rem">
+      <button type="submit" style="background:var(--acc);color:#fff;border:none;padding:8px 20px;border-radius:4px;font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer">Search</button>
+    </form>
+    <div id="mem-results">
+      {% if chunks | length == 0 %}
+        <div class="empty">No memory chunks found. Send queries to populate memory.</div>
+      {% else %}
+        {% for chunk in chunks %}
+        <div style="margin-bottom:12px;padding:10px;background:var(--bg);border:1px solid var(--brd);border-radius:4px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <code style="font-size:.68rem;color:var(--txt-dim)">{{ chunk.id }}</code>
+            <span style="font-size:.68rem;color:var(--acc)">{{ chunk.similarity }}</span>
+          </div>
+          <div style="font-size:.78rem;white-space:pre-wrap;word-break:break-all">{{ chunk.content }}</div>
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+function searchMemory() {
+  var q = document.getElementById('mem-query').value.trim();
+  if (!q) return false;
+  var results = document.getElementById('mem-results');
+  results.innerHTML = '<div class="empty">Searching...</div>';
+  fetch('/api/memory/search?q=' + encodeURIComponent(q))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.chunks || data.chunks.length === 0) {
+        results.innerHTML = '<div class="empty">No results for "' + q + '"</div>';
+        return;
+      }
+      var html = '';
+      data.chunks.forEach(function(chunk) {
+        html += '<div style="margin-bottom:12px;padding:10px;background:var(--bg);border:1px solid var(--brd);border-radius:4px">';
+        html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px">';
+        html += '<code style="font-size:.68rem;color:var(--txt-dim)">' + (chunk.id||'') + '</code>';
+        html += '<span style="font-size:.68rem;color:var(--acc)">' + (chunk.similarity||'') + '</span>';
+        html += '</div>';
+        html += '<div style="font-size:.78rem;white-space:pre-wrap;word-break:break-all">' + (chunk.content||'') + '</div>';
+        html += '</div>';
+      });
+      results.innerHTML = html;
+    })
+    .catch(function() {
+      results.innerHTML = '<div class="empty" style="color:var(--red)">Search failed</div>';
+    });
+  return false;
+}
+</script>
+{% endblock %}

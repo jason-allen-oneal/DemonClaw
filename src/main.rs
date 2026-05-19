@@ -72,14 +72,20 @@ async fn main() -> Result<()> {
             scanner,
             darkprompt,
             security_policy: security_policy.clone(),
-            evidence_locker,
+            evidence_locker: evidence_locker.clone(),
             max_concurrent_payloads: cfg.runtime.max_concurrent_payloads,
         });
 
         let (tx, rx) = tokio::sync::mpsc::channel(cfg.runtime.event_buffer);
 
         let scheduler = Scheduler::new(tx.clone());
-        let channels = Arc::new(Channels::new(tx.clone(), cfg.security.clone()));
+        let channels = Arc::new(Channels::new(
+            tx.clone(),
+            cfg.security.clone(),
+            evidence_locker,
+            security_policy.clone(),
+            Some(memory.clone()),
+        ));
 
         let heartbeat_secs = cfg.runtime.scheduler_interval_secs;
         tokio::spawn(async move {
