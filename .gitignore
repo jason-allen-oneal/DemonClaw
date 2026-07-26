@@ -1,7 +1,0 @@
-CHECKLIST_FULLSPEC.md
-
-
-# Build artifacts
-/target/
-**/target/
-**/*.rs.bk
