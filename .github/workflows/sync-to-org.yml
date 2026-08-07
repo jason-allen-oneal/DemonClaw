@@ -1,23 +1,9 @@
 name: Sync to BlueDot-IT
 
 on:
-  push:
-    branches:
-      - main
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
-    inputs:
-      bootstrap:
-        description: Reset mirror branches from BlueDot-IT main
-        required: false
-        default: false
-        type: boolean
-      sync_now:
-        description: Run organization sync now
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -27,71 +13,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  bootstrap:
-    if: >-
-      (github.event_name == 'push' && contains(github.event.head_commit.message, '[bootstrap-org-sync]')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.bootstrap)
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Bootstrap mirror branches
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-
-          bootstrap() {
-            remote_name="$1"
-            target_repo="$2"
-            mirror_branch="$3"
-            git remote add "$remote_name" "https://github.com/BlueDot-IT/${target_repo}.git"
-            git fetch --no-tags "$remote_name" main
-            git checkout -B "$mirror_branch" "$remote_name/main"
-            git push origin "$mirror_branch:$mirror_branch" --force
-          }
-
-          bootstrap demonclaw_org DemonClaw org-sync
-          bootstrap benchmarks_org agent-benchmarks bridge/agent-benchmarks
-          bootstrap meta_org .github bridge/org-dot-github
-          bootstrap maintainer_org odinn-maintainer bridge/odinn-maintainer
-
   sync:
-    if: >-
-      github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.sync_now)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Sync mirror branches to organization
+      - name: Bootstrap and sync mirrors
         env:
           ORG_SYNC_TOKEN: ${{ secrets.ORG_SYNC_TOKEN }}
         run: |
           if [ -z "$ORG_SYNC_TOKEN" ]; then
-            echo "ORG_SYNC_TOKEN is not configured; skipping organization sync."
+            echo "ORG_SYNC_TOKEN is not configured; skipping."
             exit 0
           fi
+
+          git remote set-url origin "https://x-access-token:${ORG_SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           sync_one() {
             mirror_branch="$1"
             target_repo="$2"
             source_ref="refs/remotes/origin/${mirror_branch}"
 
-            git fetch --no-tags origin "refs/heads/${mirror_branch}:${source_ref}" || {
-              echo "Mirror branch ${mirror_branch} is not bootstrapped; skipping."
-              return 0
-            }
-
             git remote remove bluedot_target 2>/dev/null || true
             git remote add bluedot_target "https://x-access-token:${ORG_SYNC_TOKEN}@github.com/BlueDot-IT/${target_repo}.git"
             git fetch --no-tags bluedot_target main
+
+            if ! git ls-remote --exit-code --heads origin "$mirror_branch" >/dev/null 2>&1; then
+              echo "${mirror_branch}: bootstrapping from BlueDot-IT/${target_repo}:main"
+              git push origin "refs/remotes/bluedot_target/main:refs/heads/${mirror_branch}"
+            fi
+
+            git fetch --no-tags origin "refs/heads/${mirror_branch}:${source_ref}"
 
             if [ "$(git rev-parse "$source_ref")" = "$(git rev-parse bluedot_target/main)" ]; then
               echo "${target_repo}: already synchronized."
