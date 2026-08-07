@@ -1,61 +1,21 @@
-name: ci
+name: lockgen
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: [ tmp/lockgen-wasmtime-46 ]
 
 permissions:
   contents: read
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  test:
+  lockgen:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: demonclaw
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d demonclaw"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 20
-
-    env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5433/demonclaw
-      RUST_BACKTRACE: 1
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          components: clippy, rustfmt
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Build WASM payloads (for e2e)
-        run: |
-          rustup target add wasm32-wasip1
-          (cd payloads/test_payload && cargo build --target wasm32-wasip1 --release)
-
-      - name: Format
-        run: cargo fmt --all -- --check
-
-      - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Tests
-        run: cargo test --all
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+      - name: Generate lockfile
+        run: cargo generate-lockfile
+      - name: Emit lockfile
+        run: base64 -w0 Cargo.lock
