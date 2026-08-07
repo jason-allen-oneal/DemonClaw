@@ -1,0 +1,42 @@
+name: Sync to BlueDot-IT
+
+on:
+  push:
+    branches:
+      - org-sync
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demonclaw-sync-to-org
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: org-sync
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "DemonClaw Sync Bot"
+          git config user.email "actions@users.noreply.github.com"
+
+      - name: Push source branch to organization main
+        env:
+          ORG_SYNC_TOKEN: ${{ secrets.ORG_SYNC_TOKEN }}
+        run: |
+          test -n "$ORG_SYNC_TOKEN" || {
+            echo "Missing required repository secret: ORG_SYNC_TOKEN" >&2
+            exit 1
+          }
+
+          git remote add org "https://x-access-token:${ORG_SYNC_TOKEN}@github.com/BlueDot-IT/DemonClaw.git"
+          git push org HEAD:main
