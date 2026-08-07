@@ -1,0 +1,23 @@
+name: Temporary DemonClaw lockfile generator
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lockgen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: tmp/lockgen-wasmtime-46
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+      - name: Generate lockfile
+        run: cargo generate-lockfile
+      - name: Emit lockfile
+        run: base64 -w0 Cargo.lock
