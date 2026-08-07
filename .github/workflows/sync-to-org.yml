@@ -4,11 +4,17 @@ on:
   push:
     branches:
       - main
-      - org-sync
+  schedule:
+    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
       bootstrap:
-        description: Reset org-sync from BlueDot-IT main
+        description: Reset mirror branches from BlueDot-IT main
+        required: false
+        default: false
+        type: boolean
+      sync_now:
+        description: Run organization sync now
         required: false
         default: false
         type: boolean
@@ -17,58 +23,90 @@ permissions:
   contents: read
 
 concurrency:
-  group: demonclaw-sync-to-org
+  group: bluedot-sync-hub
   cancel-in-progress: false
 
 jobs:
   bootstrap:
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[bootstrap-org-sync]')) ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[bootstrap-org-sync]')) ||
       (github.event_name == 'workflow_dispatch' && inputs.bootstrap)
     permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - name: Check out personal repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Bootstrap org-sync from organization main
+      - name: Bootstrap mirror branches
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git remote add bluedot https://github.com/BlueDot-IT/DemonClaw.git
-          git fetch --no-tags bluedot main
-          git checkout -B org-sync bluedot/main
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push origin org-sync:org-sync --force
+
+          bootstrap() {
+            remote_name="$1"
+            target_repo="$2"
+            mirror_branch="$3"
+            git remote add "$remote_name" "https://github.com/BlueDot-IT/${target_repo}.git"
+            git fetch --no-tags "$remote_name" main
+            git checkout -B "$mirror_branch" "$remote_name/main"
+            git push origin "$mirror_branch:$mirror_branch" --force
+          }
+
+          bootstrap demonclaw_org DemonClaw org-sync
+          bootstrap benchmarks_org agent-benchmarks bridge/agent-benchmarks
+          bootstrap meta_org .github bridge/org-dot-github
+          bootstrap maintainer_org odinn-maintainer bridge/odinn-maintainer
 
   sync:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/org-sync'
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.sync_now)
     runs-on: ubuntu-latest
     steps:
-      - name: Check out source branch
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: org-sync
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Verify and push to organization main
+      - name: Sync mirror branches to organization
         env:
           ORG_SYNC_TOKEN: ${{ secrets.ORG_SYNC_TOKEN }}
         run: |
-          test -n "$ORG_SYNC_TOKEN" || {
-            echo "Missing required repository secret: ORG_SYNC_TOKEN" >&2
-            exit 1
+          if [ -z "$ORG_SYNC_TOKEN" ]; then
+            echo "ORG_SYNC_TOKEN is not configured; skipping organization sync."
+            exit 0
+          fi
+
+          sync_one() {
+            mirror_branch="$1"
+            target_repo="$2"
+            source_ref="refs/remotes/origin/${mirror_branch}"
+
+            git fetch --no-tags origin "refs/heads/${mirror_branch}:${source_ref}" || {
+              echo "Mirror branch ${mirror_branch} is not bootstrapped; skipping."
+              return 0
+            }
+
+            git remote remove bluedot_target 2>/dev/null || true
+            git remote add bluedot_target "https://x-access-token:${ORG_SYNC_TOKEN}@github.com/BlueDot-IT/${target_repo}.git"
+            git fetch --no-tags bluedot_target main
+
+            if [ "$(git rev-parse "$source_ref")" = "$(git rev-parse bluedot_target/main)" ]; then
+              echo "${target_repo}: already synchronized."
+              return 0
+            fi
+
+            git merge-base --is-ancestor bluedot_target/main "$source_ref" || {
+              echo "Refusing ${target_repo} sync: organization main contains commits not present in ${mirror_branch}." >&2
+              return 1
+            }
+
+            git push bluedot_target "${source_ref}:refs/heads/main"
           }
 
-          git remote add org "https://x-access-token:${ORG_SYNC_TOKEN}@github.com/BlueDot-IT/DemonClaw.git"
-          git fetch --no-tags org main
-          git merge-base --is-ancestor org/main HEAD || {
-            echo "Refusing sync: BlueDot-IT/DemonClaw main contains commits not present in org-sync." >&2
-            exit 1
-          }
-          git push org HEAD:main
+          sync_one org-sync DemonClaw
+          sync_one bridge/agent-benchmarks agent-benchmarks
+          sync_one bridge/org-dot-github .github
+          sync_one bridge/odinn-maintainer odinn-maintainer
