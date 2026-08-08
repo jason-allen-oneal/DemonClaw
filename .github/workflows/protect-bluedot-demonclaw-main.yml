@@ -1,0 +1,75 @@
+name: protect-bluedot-demonclaw-main
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/protect-bluedot-demonclaw-main.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protect:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Apply conservative main branch protection
+        env:
+          ORG_SYNC_TOKEN: ${{ secrets.ORG_SYNC_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ORG_SYNC_TOKEN"
+
+          cat > protection.json <<'JSON'
+          {
+            "required_status_checks": {
+              "strict": true,
+              "contexts": ["test", "zizmor", "cargo-audit"]
+            },
+            "enforce_admins": false,
+            "required_pull_request_reviews": {
+              "dismiss_stale_reviews": false,
+              "require_code_owner_reviews": false,
+              "required_approving_review_count": 0,
+              "require_last_push_approval": false
+            },
+            "restrictions": null,
+            "required_linear_history": true,
+            "allow_force_pushes": false,
+            "allow_deletions": false,
+            "block_creations": false,
+            "required_conversation_resolution": true,
+            "lock_branch": false,
+            "allow_fork_syncing": false
+          }
+          JSON
+
+          curl --fail-with-body --silent --show-error \
+            -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${ORG_SYNC_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            https://api.github.com/repos/BlueDot-IT/DemonClaw/branches/main/protection \
+            --data-binary @protection.json > response.json
+
+          python3 - <<'PY'
+          import json
+          with open('response.json', encoding='utf-8') as f:
+              data = json.load(f)
+          checks = data.get('required_status_checks') or {}
+          contexts = set(checks.get('contexts') or [])
+          expected = {'test', 'zizmor', 'cargo-audit'}
+          if contexts != expected:
+              raise SystemExit(f'unexpected required checks: {sorted(contexts)}')
+          if (data.get('enforce_admins') or {}).get('enabled'):
+              raise SystemExit('admins unexpectedly subject to protection; bridge would be at risk')
+          if not (data.get('required_linear_history') or {}).get('enabled'):
+              raise SystemExit('linear history protection was not enabled')
+          if (data.get('allow_force_pushes') or {}).get('enabled'):
+              raise SystemExit('force pushes unexpectedly allowed')
+          if (data.get('allow_deletions') or {}).get('enabled'):
+              raise SystemExit('branch deletion unexpectedly allowed')
+          print('BlueDot-IT/DemonClaw main protection applied and verified.')
+          PY
