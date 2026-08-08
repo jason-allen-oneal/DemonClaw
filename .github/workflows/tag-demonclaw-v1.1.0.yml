@@ -1,0 +1,54 @@
+name: publish-demonclaw-v1.1.0-tag
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/tag-demonclaw-v1.1.0.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out bridge repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify reviewed SHA and publish tag to mirror and organization
+        env:
+          ORG_SYNC_TOKEN: ${{ secrets.ORG_SYNC_TOKEN }}
+          EXPECTED_SHA: 8eb383d4716a67126ef523c8ea359d6bd4fdc25a
+          TAG: v1.1.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ORG_SYNC_TOKEN"
+
+          git remote set-url origin "https://x-access-token:${ORG_SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags origin org-sync
+          test "$(git rev-parse origin/org-sync)" = "$EXPECTED_SHA"
+
+          git remote add bluedot "https://x-access-token:${ORG_SYNC_TOKEN}@github.com/BlueDot-IT/DemonClaw.git"
+          git fetch --no-tags bluedot main
+          test "$(git rev-parse bluedot/main)" = "$EXPECTED_SHA"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "${TAG} already exists in mirror" >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags bluedot "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "${TAG} already exists in organization" >&2
+            exit 1
+          fi
+
+          git config user.name "DemonClaw Release"
+          git config user.email "actions@users.noreply.github.com"
+          git tag -a "$TAG" "$EXPECTED_SHA" -m "DemonClaw 1.1.0"
+          git push origin "refs/tags/${TAG}"
+          git push bluedot "refs/tags/${TAG}"
